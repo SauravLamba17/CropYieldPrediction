@@ -1,0 +1,27 @@
+{
+  "random_forest": {
+    "model__max_depth": 16,
+    "model__max_features": 0.5,
+    "model__min_samples_leaf": 8,
+    "model__n_estimators": 587
+  },
+  "gradient_boost": {
+    "model__colsample_bytree": 0.6062545626964776,
+    "model__learning_rate": 0.035551507962283124,
+    "model__max_depth": 2,
+    "model__min_child_weight": 12,
+    "model__n_estimators": 847,
+    "model__reg_lambda": 0.1025756397418565,
+    "model__subsample": 0.9261845713819337
+  },
+  "boosting_library": "xgboost",
+  "polynomial": {
+    "alpha": 44.98432668969444
+  },
+  "ridge": {
+    "alpha": 25.595479226995334
+  },
+  "lasso": {
+    "alpha": 0.0029002665505140197
+  }
+}

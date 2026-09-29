@@ -1,0 +1,91 @@
+{
+  "numeric": {
+    "soil_ph": {
+      "min": 4.50012287538153,
+      "max": 8.498870693144521,
+      "median": 6.500782574568775,
+      "is_integer": false
+    },
+    "soil_moisture": {
+      "min": 10.00630978312227,
+      "max": 49.98692820968369,
+      "median": 29.36958527739032,
+      "is_integer": false
+    },
+    "nitrogen_content": {
+      "min": 0.5000418406448368,
+      "max": 2.999930368419956,
+      "median": 1.7586320080715876,
+      "is_integer": false
+    },
+    "phosphorus_content": {
+      "min": 0.2001361240375866,
+      "max": 1.4997936906472982,
+      "median": 0.8557346019391635,
+      "is_integer": false
+    },
+    "potassium_content": {
+      "min": 0.5000126483169565,
+      "max": 1.99912861467976,
+      "median": 1.2665088678867846,
+      "is_integer": false
+    },
+    "avg_temperature": {
+      "min": 10.006311362264052,
+      "max": 34.98647667966005,
+      "median": 22.644701573181507,
+      "is_integer": false
+    },
+    "total_rainfall": {
+      "min": 100.05293628374292,
+      "max": 1199.8910747101547,
+      "median": 661.9179493070791,
+      "is_integer": false
+    },
+    "sunlight_hours": {
+      "min": 1001.3809489640986,
+      "max": 2998.537370392632,
+      "median": 2004.361841028252,
+      "is_integer": false
+    },
+    "fertilizer_amount": {
+      "min": 50.04871558432929,
+      "max": 299.9330210739181,
+      "median": 174.67491895387406,
+      "is_integer": false
+    },
+    "pesticide_usage": {
+      "min": 0.0010124646986164,
+      "max": 14.99684057718893,
+      "median": 7.581555894198947,
+      "is_integer": false
+    },
+    "irrigation_frequency": {
+      "min": 1.0,
+      "max": 6.0,
+      "median": 4.0,
+      "is_integer": true
+    }
+  },
+  "categorical": {
+    "crop_type": [
+      "Barley",
+      "Corn",
+      "Rice",
+      "Soybean",
+      "Wheat"
+    ],
+    "region": [
+      "Central",
+      "East",
+      "North",
+      "South",
+      "West"
+    ],
+    "season": [
+      "Autumn",
+      "Spring",
+      "Summer"
+    ]
+  }
+}

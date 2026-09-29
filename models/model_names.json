@@ -1,0 +1,5 @@
+{
+  "best_linear": "polynomial",
+  "best_overall": "polynomial",
+  "best_tree": "gradient_boost"
+}

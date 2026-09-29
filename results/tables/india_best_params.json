@@ -1,0 +1,17 @@
+{
+  "random_forest": {
+    "regressor__model__max_depth": 16,
+    "regressor__model__max_features": 1.0,
+    "regressor__model__min_samples_leaf": 1,
+    "regressor__model__n_estimators": 513
+  },
+  "gradient_boost": {
+    "regressor__model__colsample_bytree": 0.8417669517111269,
+    "regressor__model__learning_rate": 0.05039059108343591,
+    "regressor__model__max_depth": 6,
+    "regressor__model__min_child_weight": 4,
+    "regressor__model__n_estimators": 724,
+    "regressor__model__reg_lambda": 0.14254757044027438,
+    "regressor__model__subsample": 0.7159005811655073
+  }
+}

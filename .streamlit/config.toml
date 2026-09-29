@@ -1,0 +1,27 @@
+# "Cyber Sand" theme for the Crop Yield dashboard (app.py).
+# A single [theme] section with base = "light" locks the app to light mode.
+
+[theme]
+base = "light"
+primaryColor = "#6366F1"               # indigo: primary buttons, sliders, emphasis
+backgroundColor = "#F7F4EB"            # warm oat canvas
+secondaryBackgroundColor = "#FFFFFF"   # inputs and containers
+textColor = "#1E1B4B"                  # navy text and structure
+linkColor = "#6366F1"
+borderColor = "#1E1B4B24"              # navy at ~14 % opacity: input borders
+showWidgetBorder = true
+dataframeBorderColor = "#1E1B4B14"     # navy at ~8 % opacity
+dataframeHeaderBackgroundColor = "#6366F114"
+font = "Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+baseFontSize = 15
+headingFontSizes = ["26px", "18px", "16px", "15px", "14px", "14px"]
+headingFontWeights = [700, 600, 600, 600, 600, 600]
+baseRadius = "10px"
+buttonRadius = "999px"
+chartCategoricalColors = ["#6366F1", "#A855F7", "#1E1B4B"]
+violetColor = "#A855F7"
+blueColor = "#6366F1"
+
+[client]
+toolbarMode = "minimal"                # hides the Deploy button and the main menu
+showSidebarNavigation = false

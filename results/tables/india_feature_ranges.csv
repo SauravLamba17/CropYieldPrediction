@@ -1,0 +1,3 @@
+feature,train_min,train_max,test_min,test_max,share_test_rows_above_train_max,share_test_rows_below_train_min
+Fertilizer_per_ha,94.66999996852034,167.52000006484474,153.24999997470894,193.61,0.259110269758637,0.0
+Pesticide_per_ha,0.09,0.33000000000000007,0.35,0.38000000000000006,1.0,0.0

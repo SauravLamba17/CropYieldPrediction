@@ -1,0 +1,10 @@
+.venv/
+data/raw/
+__pycache__/
+.ipynb_checkpoints/
+*.joblib
+kaggle.json
+access_token
+.pytest_cache/
+.ruff_cache/
+.claude/

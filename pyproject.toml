@@ -1,0 +1,7 @@
+[tool.ruff]
+line-length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# shap's own colour-map code triggers a matplotlib deprecation notice on import.
+filterwarnings = ["ignore::PendingDeprecationWarning:shap.*"]

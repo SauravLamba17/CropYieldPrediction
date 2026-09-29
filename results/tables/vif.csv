@@ -1,0 +1,12 @@
+feature,vif,flag
+soil_ph,1.0007473101900004,ok
+soil_moisture,1.001322675088697,ok
+nitrogen_content,1.0012691131307563,ok
+phosphorus_content,1.0017684117716759,ok
+potassium_content,1.0009244017267844,ok
+avg_temperature,1.002513513682448,ok
+total_rainfall,1.0007610556254491,ok
+sunlight_hours,1.001755211138443,ok
+fertilizer_amount,1.0024706653122393,ok
+pesticide_usage,1.0011477660923762,ok
+irrigation_frequency,1.0024346524369672,ok
