@@ -79,3 +79,45 @@ def report_pdf(frame: pd.DataFrame) -> bytes:
         fig.savefig(buffer, format="pdf")
         plt.close(fig)
     return buffer.getvalue()
+
+
+COMPARISON_COLUMNS = ["section", "item", "scenario_a", "scenario_b", "difference", "unit"]
+
+
+def _shown(value) -> str:
+    return f"{value:.2f}" if isinstance(value, float) else str(value)
+
+
+def comparison_frame(
+    inputs_a: dict,
+    inputs_b: dict,
+    pred_a: float,
+    pred_b: float,
+    half_width: float | None,
+    shap_gap: dict[str, float],
+    model_key: str,
+    timestamp: str,
+    version: str,
+    commit: str,
+) -> pd.DataFrame:
+    """Scenario A vs B as one table: inputs, both predictions with 90% ranges, the gap, and
+    each factor's share of the gap (SHAP(B) − SHAP(A), largest first)."""
+    rows = []
+    for col in config.FEATURES:
+        a, b = inputs_a[col], inputs_b[col]
+        diff = f"{b - a:+.2f}" if isinstance(a, int | float) and isinstance(b, int | float) else (
+            "" if a == b else "changed")
+        rows.append(("Input", labels.name(col), _shown(a), _shown(b), diff, labels.unit(col)))
+    rows.append(("Prediction", "Predicted yield", f"{pred_a:.2f}", f"{pred_b:.2f}", f"{pred_b - pred_a:+.2f}", "t/ha"))
+    pct = (pred_b - pred_a) / pred_a if pred_a else float("nan")
+    rows.append(("Prediction", "Change", "", "", f"{pct:+.1%}", "%"))
+    if half_width is not None:
+        for name, p in (("lower", -half_width), ("upper", half_width)):
+            rows.append(("Prediction", f"90% range, {name}", f"{pred_a + p:.2f}", f"{pred_b + p:.2f}", "", "t/ha"))
+    rows.append(("Prediction", "Model", labels.model(model_key), labels.model(model_key), "", ""))
+    for col, gap in shap_gap.items():
+        rows.append(("Gap explained by (SHAP)", labels.name(col), "", "", f"{gap:+.3f}", "t/ha"))
+    rows.append(("About", "Created", timestamp, "", "", ""))
+    rows.append(("About", "App version", version, "", "", ""))
+    rows.append(("About", "Code commit", commit, "", "", ""))
+    return pd.DataFrame(rows, columns=COMPARISON_COLUMNS)

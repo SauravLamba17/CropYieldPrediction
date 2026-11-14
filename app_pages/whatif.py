@@ -3,10 +3,12 @@
 import numpy as np
 import pandas as pd
 import streamlit as st
+
 from src import config
-from ui import charts, data, labels, plain
-from ui.components import card_title, headline_card, setup_card
+from ui import analysis, charts, data, labels, plain
+from ui.components import Kpi, caption, card_title, headline_card, kpi_row, setup_card
 from ui.plain import TIPS
+from ui.report import comparison_frame, report_csv
 from ui.theme import GROUP_SERIES
 
 simple = data.is_simple()
@@ -94,6 +96,72 @@ with st.container(key="card-heatmap"):
         f"against <b>{current[2]:.2f} t/ha</b> now (◆). The grid stays inside the values seen in the "
         "training data: the model is only reliable inside the observed data range.</p>"
     )
+
+data.init_scenario_b()
+with st.container(key="card-ab"):
+    head, swap, reset = st.columns([5, 2, 2], vertical_alignment="center")
+    with head:
+        card_title("Scenario A vs B", "A is the field set on Predict; B starts as a copy. Change B and compare.",
+                   help_text=TIPS["abtest"])
+    with swap:
+        st.button("Swap A/B", icon=":material/swap_horiz:", on_click=data.swap_a_b, key="ab_swap",
+                  width="stretch")
+    with reset:
+        st.button("Reset B to A", icon=":material/restart_alt:", on_click=data.reset_b_to_a, key="ab_reset",
+                  width="stretch")
+    metadata = data.app_metadata()
+
+    def scenario_inputs(prefix: str) -> None:
+        cols = st.columns(2, gap="medium")
+        for i, col in enumerate(config.FEATURES):
+            with cols[i % 2]:
+                key = f"{prefix}_{col}"
+                if col in metadata["numeric"]:
+                    m = metadata["numeric"][col]
+                    low, high = (int(m["min"]), int(m["max"])) if m["is_integer"] else (m["min"], m["max"])
+                    st.slider(labels.label(col, simple), low, high, key=key,
+                              on_change=data.clear_preset if prefix == "in" else None)
+                else:
+                    st.selectbox(labels.label(col, simple), metadata["categorical"][col], key=key,
+                                 on_change=data.clear_preset if prefix == "in" else None)
+
+    edit_a, edit_b = st.columns(2, gap="medium")
+    with edit_a, st.expander("Scenario A inputs", icon=":material/edit:"):
+        scenario_inputs("in")
+    with edit_b, st.expander("Scenario B inputs", icon=":material/edit:"):
+        scenario_inputs("b")
+
+    a_inputs, b_inputs = data.input_tuple(), data.b_tuple()
+    with st.spinner("Explaining both scenarios…", show_time=True):
+        pred_a, pred_b = data.prediction(a_inputs), data.prediction(b_inputs)
+        _, shap_a = data.explanation(a_inputs)
+        _, shap_b = data.explanation(b_inputs)
+    gap = analysis.shap_difference(shap_a, shap_b)
+    q = band["quantile"] if band else None
+    diff = pred_b - pred_a
+    ranges = (lambda p: f"90% range {p - q:.2f}–{p + q:.2f}") if q else (lambda p: "")
+    kpi_row([
+        Kpi("Scenario A", f"{pred_a:.2f}", "t/ha", ranges(pred_a)),
+        Kpi("Scenario B", f"{pred_b:.2f}", "t/ha", ranges(pred_b), accent=True),
+        Kpi("B − A", f"{diff:+.2f}".replace("-", "−"), "t/ha",
+            f"{diff / pred_a:+.1%} of A".replace("-", "−")),
+    ])
+    changed = [labels.name(f, simple) for f, a, b in zip(config.FEATURES, a_inputs, b_inputs) if a != b]
+    if changed:
+        shown = gap[gap.abs() > 0.0005]
+        st.altair_chart(charts.gap_chart(shown if len(shown) else gap.head(3),
+                                         {f: labels.name(f, simple) for f in config.FEATURES},
+                                         max(160, 28 * max(len(shown), 3))))
+        caption(f"Changed in B: {', '.join(changed)}. The bars (SHAP of B minus SHAP of A) add up to "
+                f"{gap.sum():+.2f} t/ha, the gap between the two predictions.".replace("-", "−"))
+    else:
+        caption("B is the same as A. Open “Scenario B inputs” and move a slider to compare.")
+    frame = comparison_frame(
+        dict(zip(config.FEATURES, a_inputs)), dict(zip(config.FEATURES, b_inputs)), pred_a, pred_b, q,
+        gap.to_dict(), data.model_names()["best_overall"], data.now_utc(), data.APP_VERSION, data.app_commit(),
+    )
+    st.download_button("Download the comparison (CSV)", report_csv(frame), file_name="crop_yield_a_vs_b.csv",
+                       mime="text/csv", icon=":material/download:", key="dl_ab", on_click="ignore")
 
 group_side, feature_side = st.columns([2, 3], gap="medium")
 if simple:
