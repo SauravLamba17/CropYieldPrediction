@@ -295,18 +295,38 @@ def curve_chart(
     x_title: str,
     height: int,
     band: float | None = None,
+    region: tuple[float, float] | None = None,
 ):
     """Predicted yield as one factor sweeps its range; a gold dot marks `current`.
 
     `curve` has columns x, y. `band` (t/ha) shades the 90% range around the line.
     """
     x = alt.X("x:Q", title=x_title, scale=alt.Scale(zero=False, nice=False))
-    y = alt.Y("y:Q", title="Predicted yield (t/ha)", scale=alt.Scale(zero=False), axis=alt.Axis(format=".1f"))
+    span = float(curve["y"].max() - curve["y"].min()) + 2 * (band or 0)
+    y = alt.Y(
+        "y:Q",
+        title="Predicted yield (t/ha)",
+        scale=alt.Scale(zero=False),
+        axis=alt.Axis(format=".2f" if span < 1 else ".1f"),  # no repeated tick labels on flat curves
+    )
     tooltip = [
         alt.Tooltip("x:Q", title=x_title, format=",.2f"),
         alt.Tooltip("y:Q", title="Predicted t/ha", format=".2f"),
     ]
     layers = []
+    if region is not None:  # e.g. the optimum region of a response curve
+        bounds = pd.DataFrame({"a": [region[0]], "b": [region[1]]})
+        layers.append(
+            alt.Chart(bounds).mark_rect(opacity=0.18).encode(
+                x="a:Q",
+                x2="b:Q",
+                color=solid("gold_chart"),
+                tooltip=[
+                    alt.Tooltip("a:Q", title="Region from", format=".2f"),
+                    alt.Tooltip("b:Q", title="to", format=".2f"),
+                ],
+            )
+        )
     if band is not None:
         shaded = curve.assign(lo=curve["y"] - band, hi=curve["y"] + band)
         layers.append(
@@ -523,3 +543,169 @@ def month_chart(frame: pd.DataFrame, height: int):
         ),
         height,
     )
+
+
+def rank_dot_chart(long: pd.DataFrame, order: list[str], methods: list[str], height: int):
+    """Rank (1 = most important) of every input under each method: one dot per method.
+
+    `long` has columns: feature (display name), method, rank. Methods are coloured by
+    theme series (green, sky, soil) and offset vertically so ties stay visible.
+    """
+    series = dict(zip(methods, ["green", "sky", "soil"]))
+    frame = long.assign(series=long["method"].map(series))
+    label_expr = "{" + ", ".join(f"'{s}': '{m}'" for m, s in series.items()) + "}[datum.label]"
+    n = int(frame["rank"].max())
+    y = alt.Y("feature:N", sort=order, title=None)
+    dots = alt.Chart(frame).mark_circle(size=130, opacity=0.95).encode(
+        y=y,
+        yOffset=alt.YOffset("method:N", sort=methods, scale=alt.Scale(paddingOuter=0.6)),
+        x=alt.X(
+            "rank:Q",
+            title="Rank (1 = most important)",
+            scale=alt.Scale(domain=[0.5, n + 0.5]),
+            axis=alt.Axis(values=list(range(1, n + 1)), format="d"),
+        ),
+        color=alt.Color(
+            "series:N",
+            scale=PALETTE,
+            legend=alt.Legend(
+                title=None, orient="top", values=list(series.values()), labelExpr=label_expr,
+                symbolType="circle",
+            ),
+        ),
+        tooltip=[
+            alt.Tooltip("feature:N", title="Input"),
+            alt.Tooltip("method:N", title="Method"),
+            alt.Tooltip("rank:Q", title="Rank"),
+        ],
+    )
+    return style(dots, height)
+
+
+def scatter_xy(frame: pd.DataFrame, x: str, y: str, x_title: str, y_title: str, height: int):
+    """Plain scatter of two columns (e.g. yield against soil pH), small faint dots."""
+    return style(
+        alt.Chart(frame[[x, y]]).mark_circle(size=12, opacity=0.35).encode(
+            x=alt.X(f"{x}:Q", title=x_title, scale=alt.Scale(zero=False)),
+            y=alt.Y(f"{y}:Q", title=y_title, scale=alt.Scale(zero=False)),
+            color=solid("soil"),
+            tooltip=[
+                alt.Tooltip(f"{x}:Q", title=x_title, format=".2f"),
+                alt.Tooltip(f"{y}:Q", title=y_title, format=".2f"),
+            ],
+        ),
+        height,
+    )
+
+
+def coefficient_chart(table: pd.DataFrame, height: int):
+    """Coefficients with 95% bootstrap intervals; grey when the interval crosses zero.
+
+    `table` has columns: label, coef, ci_low, ci_high, crosses_zero (already ordered).
+    """
+    sign = np.where(table["coef"] >= 0, "shap_pos", "shap_neg")
+    frame = table.assign(
+        series=np.where(table["crosses_zero"], "neutral", sign),
+        verdict=np.where(
+            table["crosses_zero"],
+            "not distinguishable from zero",
+            np.where(table["coef"] >= 0, "positive", "negative"),
+        ),
+    )
+    y = alt.Y("label:N", sort=list(frame["label"]), title=None)
+    tooltip = [
+        alt.Tooltip("label:N", title="Term"),
+        alt.Tooltip("coef:Q", title="Coefficient", format="+.4f"),
+        alt.Tooltip("ci_low:Q", title="95% low", format="+.4f"),
+        alt.Tooltip("ci_high:Q", title="95% high", format="+.4f"),
+        alt.Tooltip("verdict:N", title="Verdict"),
+    ]
+    rules = alt.Chart(frame).mark_rule(strokeWidth=2).encode(
+        y=y,
+        x=alt.X("ci_low:Q", title="Standardised coefficient (t/ha)"),
+        x2="ci_high:Q",
+        color=colour("series"),
+        tooltip=tooltip,
+    )
+    dots = alt.Chart(frame).mark_circle(size=70, opacity=1).encode(
+        y=y, x="coef:Q", color=colour("series"), tooltip=tooltip
+    )
+    zero = alt.Chart(pd.DataFrame({"x": [0]})).mark_rule(strokeDash=[4, 3]).encode(
+        x="x:Q", color=solid("text")
+    )
+    return style(alt.layer(zero, rules, dots), height)
+
+
+def pdp_ice_chart(pdp: pd.DataFrame, ice: pd.DataFrame, x_title: str, height: int):
+    """Partial dependence (thick line) over individual conditional expectation lines (thin)."""
+    x = alt.X("x:Q", title=x_title, scale=alt.Scale(zero=False, nice=False))
+    lines = alt.Chart(ice).mark_line(strokeWidth=1, opacity=0.25, interpolate="monotone").encode(
+        x=x,
+        y=alt.Y("y:Q", title="Predicted yield (t/ha)", scale=alt.Scale(zero=False)),
+        detail="line:N",
+        color=solid("sky"),
+    )
+    mean = alt.Chart(pdp).mark_line(strokeWidth=4, interpolate="monotone").encode(
+        x=x,
+        y="y:Q",
+        color=solid("green"),
+        tooltip=[
+            alt.Tooltip("x:Q", title=x_title, format=",.2f"),
+            alt.Tooltip("y:Q", title="Average prediction (t/ha)", format=".2f"),
+        ],
+    )
+    return style(alt.layer(lines, mean), height)
+
+
+def heatmap_chart(
+    grid: pd.DataFrame, x_title: str, y_title: str, current: tuple, best: tuple, height: int
+):
+    """Predicted yield over two inputs; diamond = current scenario, gold square = best cell.
+
+    Cell colours follow the theme's sequential palette (chartSequentialColors, light/dark).
+    """
+    xs, ys = sorted(grid["x"].unique()), sorted(grid["y"].unique())
+    dx = (xs[-1] - xs[0]) / max(len(xs) - 1, 1) / 2
+    dy = (ys[-1] - ys[0]) / max(len(ys) - 1, 1) / 2
+    cells = grid.assign(x0=grid["x"] - dx, x1=grid["x"] + dx, y0=grid["y"] - dy, y1=grid["y"] + dy)
+    xs_scale = alt.Scale(domain=[xs[0] - dx, xs[-1] + dx], nice=False, zero=False)
+    ys_scale = alt.Scale(domain=[ys[0] - dy, ys[-1] + dy], nice=False, zero=False)
+    tooltip = [
+        alt.Tooltip("x:Q", title=x_title, format=",.2f"),
+        alt.Tooltip("y:Q", title=y_title, format=",.2f"),
+        alt.Tooltip("pred:Q", title="Predicted t/ha", format=".2f"),
+    ]
+    rects = alt.Chart(cells).mark_rect().encode(
+        x=alt.X("x0:Q", title=x_title, scale=xs_scale),
+        x2="x1:Q",
+        y=alt.Y("y0:Q", title=y_title, scale=ys_scale),
+        y2="y1:Q",
+        color=alt.Color(
+            "pred:Q", title="t/ha", legend=alt.Legend(orient="right", format=".1f", gradientLength=200)
+        ),
+        tooltip=tooltip,
+    )
+    marks = pd.DataFrame(
+        {
+            "x": [current[0], best[0]],
+            "y": [current[1], best[1]],
+            "what": ["Current scenario", "Best cell in the grid"],
+            "pred": [current[2], best[2]],
+        }
+    )
+    mark_tip = [alt.Tooltip("what:N", title=""), alt.Tooltip("pred:Q", title="t/ha", format=".2f")]
+    best_mark = alt.Chart(marks.iloc[[1]]).mark_square(size=260, filled=False, strokeWidth=3).encode(
+        x="x:Q", y="y:Q", color=solid("gold_chart"), tooltip=mark_tip
+    )
+    current_mark = alt.Chart(marks.iloc[[0]]).mark_point(
+        shape="diamond", size=200, filled=True, strokeWidth=1.5
+    ).encode(x="x:Q", y="y:Q", color=solid("text"), tooltip=mark_tip)
+    return style(alt.layer(rects, best_mark, current_mark), height)
+
+
+def gap_chart(gap: pd.Series, names: dict[str, str], height: int):
+    """SHAP(B) − SHAP(A) per input: which factors explain the difference between scenarios."""
+    frame = pd.DataFrame(
+        {"feature": [names[f] for f in gap.index], "value": gap.to_numpy(), "order": range(len(gap))}
+    )
+    return contribution_chart(frame, height)

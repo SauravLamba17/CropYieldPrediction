@@ -41,7 +41,12 @@ PERSISTENT = [f"in_{f}" for f in config.FEATURES] + [
     "board_model",
     "explore_feature",
     "corr_method",
-]
+    "explain_model",
+    "coef_model",
+    "pdp_feature",
+    "heat_x",
+    "heat_y",
+] + [f"b_{f}" for f in config.FEATURES]
 
 
 WIDGET_DEFAULTS = {
@@ -52,6 +57,11 @@ WIDGET_DEFAULTS = {
     "corr_method": "Pearson",
     "whatif_feature": config.NUMERIC_FEATURES[0],
     "explore_feature": config.NUMERIC_FEATURES[0],
+    "explain_model": "best_overall",
+    "coef_model": "multiple_lr",
+    "pdp_feature": "soil_ph",
+    "heat_x": "fertilizer_amount",
+    "heat_y": "total_rainfall",
 }
 
 
@@ -325,3 +335,47 @@ def explanation(inputs: tuple) -> tuple[float, dict[str, float]]:
 
 def input_tuple() -> tuple:
     return tuple(st.session_state[f"in_{f}"] for f in config.FEATURES)
+
+
+# --- Phase 3: heatmap, PDP/ICE, scenario B -------------------------------------------
+
+
+@st.cache_data(max_entries=64)
+def heatmap(fx: str, fy: str, inputs: tuple) -> pd.DataFrame:
+    """25 × 25 predicted yields over two inputs' observed ranges (cached per inputs)."""
+    from ui.analysis import heatmap_grid
+
+    return heatmap_grid(
+        load_model(), dict(zip(config.FEATURES, inputs)), fx, fy, app_metadata()["numeric"]
+    )
+
+
+@st.cache_data
+def ice(feature: str) -> pd.DataFrame:
+    """50 ICE lines (training fields drawn with the fixed seed) for the deployed model."""
+    from ui.analysis import ICE_LINES, ice_frame
+
+    rows = split()[0][config.FEATURES].sample(ICE_LINES, random_state=config.RANDOM_STATE)
+    return ice_frame(load_model(), rows.reset_index(drop=True), feature, sweep_grid(feature))
+
+
+def init_scenario_b() -> None:
+    """Scenario B starts as a copy of the current scenario (A)."""
+    for f in config.FEATURES:
+        st.session_state.setdefault(f"b_{f}", st.session_state[f"in_{f}"])
+
+
+def b_tuple() -> tuple:
+    return tuple(st.session_state[f"b_{f}"] for f in config.FEATURES)
+
+
+def reset_b_to_a() -> None:
+    for f in config.FEATURES:
+        st.session_state[f"b_{f}"] = st.session_state[f"in_{f}"]
+
+
+def swap_a_b() -> None:
+    for f in config.FEATURES:
+        a, b = st.session_state[f"in_{f}"], st.session_state[f"b_{f}"]
+        st.session_state[f"in_{f}"], st.session_state[f"b_{f}"] = b, a
+    st.session_state["preset"] = None

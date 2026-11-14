@@ -21,6 +21,7 @@ PAGES = [
     st.Page("app_pages/predict.py", title="Predict", icon=":material/agriculture:"),
     st.Page("app_pages/whatif.py", title="What-if", icon=":material/tune:"),
     st.Page("app_pages/models.py", title="Model comparison", icon=":material/leaderboard:"),
+    st.Page("app_pages/explain.py", title="Explain", icon=":material/psychology:"),
     st.Page("app_pages/explorer.py", title="Data explorer", icon=":material/query_stats:"),
     st.Page("app_pages/india.py", title="India", icon=":material/public:"),
 ]

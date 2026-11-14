@@ -92,6 +92,9 @@ COLUMNS = {  # results-table column -> header
     "share_test_rows_below_train_min": "Test rows below train min",
     "mean_abs_shap": "Mean |SHAP|",
     "share": "Share",
+    "coverage": "Coverage",
+    "n": "Test fields",
+    "group": "Group",
 }
 
 
@@ -136,3 +139,15 @@ def column(col: str) -> str:
 def level(value: str) -> str:
     """A category level as shown: 'Other  Rabi pulses' -> 'Other Rabi pulses'."""
     return " ".join(str(value).split())
+
+
+def lower(text: str) -> str:
+    """Lower-case the first letter only, so 'Soil pH' reads 'soil pH' inside a sentence."""
+    return text[:1].lower() + text[1:]
+
+
+def term(term_name: str, feature: str) -> str:
+    """A model term as shown: 'crop_type_Rice' -> 'Crop type = Rice'; 'soil_ph' -> 'Soil pH'."""
+    if term_name == feature:
+        return name(feature)
+    return f"{name(feature)} = {level(term_name[len(feature) + 1 :])}"
