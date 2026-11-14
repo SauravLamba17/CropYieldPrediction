@@ -25,3 +25,24 @@ def test_saved_tables_agree_with_the_deployed_model():
     assert board.loc[board["model"] != "dummy_mean", "model"].iloc[0] == names["best_overall"]
     assert list(test["model"]) == list(board["model"])  # the CSV itself is in CV order
     assert {"train_rmse", "rmse", "mae", "r2"} <= set(test.columns)
+
+
+def test_conformal_quantile_known_values():
+    import numpy as np
+
+    from src.evaluate import conformal_quantile
+
+    residuals = np.arange(1, 20)  # 19 residuals: rank ceil(20 * 0.9) = 18 -> 18
+    assert conformal_quantile(residuals, 0.10) == 18
+    assert conformal_quantile(-residuals, 0.10) == 18  # absolute values
+    assert conformal_quantile(np.arange(1, 6), 0.10) == 5  # rank capped at n
+
+
+def test_saved_conformal_interval_is_consistent():
+    saved = json.loads((config.TABLES_DIR / "conformal.json").read_text())
+    names = json.loads((config.MODELS_DIR / "model_names.json").read_text())
+    assert saved["model"] == names["best_overall"]
+    assert saved["level"] == 0.9
+    assert saved["interval_width"] == 2 * saved["quantile"] > 0
+    assert 0.8 < saved["test_coverage"] <= 1
+    assert saved["n_test"] == 960
