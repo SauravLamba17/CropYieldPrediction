@@ -143,3 +143,18 @@ def test_ablation_table_and_ranges():
     r = feature_ranges(train, test, ["x"]).iloc[0]
     assert r["share_test_rows_above_train_max"] == 0.5
     assert r["share_test_rows_below_train_min"] == 0.25
+
+
+def test_unseen_test_crops_are_handled(split):
+    """Crops seen only in the test years (e.g. 'Other Summer Pulses') still get a prediction."""
+    train, test = split
+    unseen = sorted(set(test[config.INDIA_CROP]) - set(train[config.INDIA_CROP]))
+    assert unseen, "expected at least one crop that only appears in 2016-2020"
+    rows = test[test[config.INDIA_CROP].isin(unseen)]
+    X_train, y_train = india_xy(train)
+    model = india_models(train)["multiple_lr"].fit(X_train, y_train)
+    with pytest.warns(UserWarning, match="unknown categories"):  # encoded as all zeros
+        pred = model.predict(india_xy(rows)[0])
+    assert len(pred) == len(rows) and np.all(np.isfinite(pred)) and np.all(pred > 0)
+    lookup = lookup_baseline(train, rows, [config.INDIA_CROP, config.INDIA_STATE])
+    assert np.all(np.isfinite(lookup))  # the no-ML look-up falls back to the overall mean

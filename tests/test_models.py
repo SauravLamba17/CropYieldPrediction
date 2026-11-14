@@ -61,3 +61,16 @@ def test_polynomial_expands_numeric_only(train, sample):
     n_poly = n + n * (n + 1) // 2  # linear + squares + pairwise products
     n_onehot = sum(sample[c].nunique() for c in config.CATEGORICAL_FEATURES)
     assert len(names) == n_poly + n_onehot
+
+
+def test_unseen_category_is_encoded_as_all_zeros(train, sample):
+    """A crop/region/season never seen in training must not crash prediction."""
+    X, y = split_xy(sample)
+    model = all_models(train)["ridge"].fit(X, y)
+    unseen = X.head(3).assign(crop_type="Not a real crop")
+    pred = model.predict(unseen)
+    assert np.all(np.isfinite(pred))
+    encoded = model[0].transform(unseen)
+    names = model[0].get_feature_names_out()
+    crop_columns = [i for i, n in enumerate(names) if n.startswith("crop_type_")]
+    assert crop_columns and (encoded[:, crop_columns] == 0).all()

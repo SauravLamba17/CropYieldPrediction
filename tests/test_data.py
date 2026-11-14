@@ -1,7 +1,33 @@
+import hashlib
+
 import pandas as pd
+import pytest
 
 from src import config
 from src.data import load_kaggle_train, load_split, make_split
+
+TRACKED_SPLIT = [config.KAGGLE_TRAIN_PARQUET, config.KAGGLE_TEST_PARQUET]  # committed copies
+
+
+@pytest.fixture(autouse=True)
+def isolated_split(tmp_path, monkeypatch):
+    """make_split() writes the split to parquet; send it to a temp dir, never to data/processed/."""
+    monkeypatch.setattr(config, "PROCESSED_DIR", tmp_path)
+    monkeypatch.setattr(config, "KAGGLE_TRAIN_PARQUET", tmp_path / "kaggle_train.parquet")
+    monkeypatch.setattr(config, "KAGGLE_TEST_PARQUET", tmp_path / "kaggle_test.parquet")
+    return tmp_path
+
+
+def sha256(path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def test_make_split_does_not_touch_tracked_files(isolated_split):
+    before = [sha256(p) for p in TRACKED_SPLIT]
+    make_split()
+    assert [sha256(p) for p in TRACKED_SPLIT] == before
+    assert (isolated_split / "kaggle_train.parquet").exists()
+    assert (isolated_split / "kaggle_test.parquet").exists()
 
 
 def test_split_sizes_sum_to_deduplicated_original():
