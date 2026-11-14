@@ -1,27 +1,108 @@
-# "Cyber Sand" theme for the Crop Yield dashboard (app.py).
-# A single [theme] section with base = "light" locks the app to light mode.
+# "Field & Harvest" theme for the Crop Yield dashboard. Colours come from ui/theme.py
+# (TOKENS); tests/test_theme.py fails if the two drift apart.
+# Fonts are bundled in static/fonts/ (OFL-1.1), so the app looks the same offline.
+
+[server]
+enableStaticServing = true            # serves static/ (the bundled fonts)
+# No code-change watcher: it re-scanned every imported module on each new browser session
+# (about 5 s per page load). Restart the app after editing code.
+fileWatcherType = "none"
+
+[client]
+toolbarMode = "viewer"                # keeps the menu with the Light / Dark / System switch
+showSidebarNavigation = false
 
 [theme]
 base = "light"
-primaryColor = "#6366F1"               # indigo: primary buttons, sliders, emphasis
-backgroundColor = "#F7F4EB"            # warm oat canvas
-secondaryBackgroundColor = "#FFFFFF"   # inputs and containers
-textColor = "#1E1B4B"                  # navy text and structure
-linkColor = "#6366F1"
-borderColor = "#1E1B4B24"              # navy at ~14 % opacity: input borders
-showWidgetBorder = true
-dataframeBorderColor = "#1E1B4B14"     # navy at ~8 % opacity
-dataframeHeaderBackgroundColor = "#6366F114"
-font = "Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+font = "Inter"
+headingFont = "Manrope"
+codeFont = "IBM Plex Mono"
 baseFontSize = 15
-headingFontSizes = ["26px", "18px", "16px", "15px", "14px", "14px"]
-headingFontWeights = [700, 600, 600, 600, 600, 600]
+headingFontSizes = ["26px", "20px", "16px", "15px", "14px", "14px"]
+headingFontWeights = [800, 700, 700, 600, 600, 600]
 baseRadius = "10px"
 buttonRadius = "999px"
-chartCategoricalColors = ["#6366F1", "#A855F7", "#1E1B4B"]
-violetColor = "#A855F7"
-blueColor = "#6366F1"
+showWidgetBorder = true
+linkUnderline = false
 
-[client]
-toolbarMode = "minimal"                # hides the Deploy button and the main menu
-showSidebarNavigation = false
+[[theme.fontFaces]]
+family = "Inter"
+url = "app/static/fonts/inter-latin-400-normal.woff2"
+weight = 400
+
+[[theme.fontFaces]]
+family = "Inter"
+url = "app/static/fonts/inter-latin-500-normal.woff2"
+weight = 500
+
+[[theme.fontFaces]]
+family = "Inter"
+url = "app/static/fonts/inter-latin-600-normal.woff2"
+weight = 600
+
+[[theme.fontFaces]]
+family = "Inter"
+url = "app/static/fonts/inter-latin-700-normal.woff2"
+weight = 700
+
+[[theme.fontFaces]]
+family = "Manrope"
+url = "app/static/fonts/manrope-latin-600-normal.woff2"
+weight = 600
+
+[[theme.fontFaces]]
+family = "Manrope"
+url = "app/static/fonts/manrope-latin-700-normal.woff2"
+weight = 700
+
+[[theme.fontFaces]]
+family = "Manrope"
+url = "app/static/fonts/manrope-latin-800-normal.woff2"
+weight = 800
+
+[[theme.fontFaces]]
+family = "IBM Plex Mono"
+url = "app/static/fonts/ibm-plex-mono-latin-400-normal.woff2"
+weight = 400
+
+[[theme.fontFaces]]
+family = "IBM Plex Mono"
+url = "app/static/fonts/ibm-plex-mono-latin-500-normal.woff2"
+weight = 500
+
+[[theme.fontFaces]]
+family = "IBM Plex Mono"
+url = "app/static/fonts/ibm-plex-mono-latin-600-normal.woff2"
+weight = 600
+
+[theme.light]
+primaryColor = "#2E7D32"
+backgroundColor = "#F6F4EC"
+secondaryBackgroundColor = "#EFEBDD"
+textColor = "#1F2A1F"
+linkColor = "#2563A8"
+borderColor = "#DAD6C8"
+dataframeBorderColor = "#DAD6C8"
+dataframeHeaderBackgroundColor = "#EFEBDD"
+greenColor = "#2E7D32"
+blueColor = "#3B82C4"
+yellowColor = "#E0A526"
+orangeColor = "#C2711C"
+chartCategoricalColors = ["#2E7D32", "#3B82C4", "#8D6E63", "#A87A12", "#1B7F5B", "#C2711C", "#7A8475", "#C9C6B8", "#1F2A1F"]
+chartSequentialColors = ["#F1F5EC", "#DCEBD3", "#C3DDB7", "#A6CD98", "#87BC78", "#68A85B", "#4C9244", "#357B33", "#236427", "#164D1C"]
+
+[theme.dark]
+primaryColor = "#66BB6A"
+backgroundColor = "#121611"
+secondaryBackgroundColor = "#232B22"
+textColor = "#E8EDE4"
+linkColor = "#7FB3E6"
+borderColor = "#33402F"
+dataframeBorderColor = "#33402F"
+dataframeHeaderBackgroundColor = "#232B22"
+greenColor = "#66BB6A"
+blueColor = "#7FB3E6"
+yellowColor = "#F2C14E"
+orangeColor = "#F0A04B"
+chartCategoricalColors = ["#66BB6A", "#7FB3E6", "#BCAAA4", "#F2C14E", "#4CC79A", "#F0A04B", "#8E9A89", "#3A4538", "#E8EDE4"]
+chartSequentialColors = ["#1E2A1D", "#25391F", "#2D4A25", "#365C2C", "#416F34", "#4E833E", "#5E984B", "#73AD5D", "#8DC274", "#AAD78F"]
