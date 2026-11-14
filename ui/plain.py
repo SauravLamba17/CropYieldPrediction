@@ -1,49 +1,22 @@
 """Plain-language text for the dashboard, always generated from real numbers.
 
 No Streamlit here, so every sentence can be unit-tested (tests/test_plain.py).
-Sentences are HTML: key numbers are wrapped in <b>, which the theme colours indigo.
+Sentences are HTML: key numbers are wrapped in <b>, which the theme colours green.
 Wording stays descriptive ("the model predicts", "is associated with"), never causal.
 """
 
 import numpy as np
 
+from src import config
+from ui import labels
+
 MINUS = "−"
 # The India data mixes units across crops, so its errors are never labelled t/ha.
 INDIA_UNIT = "yield units"
 
-FRIENDLY = {  # feature -> everyday name (Simple mode charts and sentences)
-    "soil_ph": "Soil pH",
-    "soil_moisture": "Soil moisture",
-    "nitrogen_content": "Soil nitrogen",
-    "phosphorus_content": "Soil phosphorus",
-    "potassium_content": "Soil potassium",
-    "avg_temperature": "Temperature",
-    "total_rainfall": "Rainfall",
-    "sunlight_hours": "Sunshine",
-    "fertilizer_amount": "Fertilizer",
-    "pesticide_usage": "Pesticide use",
-    "irrigation_frequency": "Irrigation",
-    "crop_type": "Crop",
-    "region": "Region",
-    "season": "Season",
-}
-GROUP_PLAIN = {
-    "Farming": "Farming practices",
-    "Soil": "Soil conditions",
-    "Weather": "Weather",
-    "Context": "Crop, region and season",
-}
-PLAIN_MODEL_NAMES = {
-    "gradient_boost": "Boosted decision trees",
-    "polynomial": "Curved formula",
-    "polynomial_deg3": "Extra-curved formula",
-    "lasso": "Straight-line formula (trimmed)",
-    "ridge": "Straight-line formula (smoothed)",
-    "multiple_lr": "Straight-line formula",
-    "random_forest": "Forest of decision trees",
-    "simple_lr": "Fertilizer-only line",
-    "dummy_mean": "Guessing the average",
-}
+FRIENDLY = {c: labels.name(c, simple=True) for c in config.FEATURES}  # Simple-mode names
+GROUP_PLAIN = {g: labels.group(g, simple=True) for g in labels.GROUPS}
+PLAIN_MODEL_NAMES = {m: labels.model(m, simple=True) for m in labels.MODELS}
 TIPS = {  # one-line explanations behind every ⓘ (both modes)
     "t/ha": "Tonnes of harvest per hectare. A hectare is 10,000 m², about 1.4 football pitches.",
     "average": (
@@ -112,6 +85,16 @@ TIPS = {  # one-line explanations behind every ⓘ (both modes)
         "but in Indian crop statistics cotton is counted in bales of 170 kg and jute, mesta "
         "and sannhemp in bales of 180 kg (coconut, counted in nuts, is left out). One error "
         "across all crops therefore has no single unit."
+    ),
+    "interval": (
+        "90% range: if the model sees fields like this one many times, the real yield should "
+        "land inside this range about 9 times in 10. It was checked on 960 fields the model "
+        "never saw."
+    ),
+    "interval_method": (
+        "Split-conformal prediction interval: the model's prediction ± the 90th-percentile "
+        "(finite-sample rank) of its absolute out-of-fold cross-validation errors on the "
+        "3,840 training fields."
     ),
     "relative": (
         "The crop's typical error divided by its average yield. Under 50% is labelled 'works well'."
@@ -348,4 +331,23 @@ def lesson_seasons(n_negative: int, n_crops: int) -> tuple[str, str]:
         "The models tell crops apart well but struggle with good vs bad seasons for the same "
         f"crop: for <b>{n_negative} of the {n_crops}</b> most common crops, they predict that "
         "crop's yield no better than simply guessing its average every time (R² below zero)."
+    )
+
+
+def interval_sentence(lo: float, hi: float, coverage: float, n_test: int) -> str:
+    """Simple-mode reading of the 90% range, with its measured test-set coverage."""
+    return (
+        f"For fields like this, the real yield usually lands between <b>{lo:.2f}</b> and "
+        f"<b>{hi:.2f} t/ha</b>: on <b>{n_test}</b> fields the model never saw, the range held "
+        f"<b>{coverage:.0%}</b> of the time (aim: 90%)."
+    )
+
+
+def interval_method(q: float, n_cal: int, coverage: float, n_test: int) -> str:
+    """Technical-mode description of how the 90% range is computed."""
+    return (
+        f"Split-conformal 90% interval: prediction ± <b>{q:.3f} t/ha</b>, the "
+        f"⌈(n+1)·0.9⌉-th smallest absolute out-of-fold 5-fold CV residual of the deployed model "
+        f"(n = {n_cal:,} training fields). Empirical coverage on the {n_test} held-out test fields: "
+        f"<b>{coverage:.1%}</b>."
     )
