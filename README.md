@@ -296,11 +296,11 @@ A Streamlit app (`app.py` plus one script per page in `app_pages/`) makes the mo
 | **Data explorer** | The key EDA from notebook 01 as interactive charts: yield and input distributions, a Pearson / Spearman correlation heatmap, yield by crop, region and season, and yield by harvest month (needs the raw Kaggle CSV; a setup card explains how to get it). |
 | **India** | The real-world check: lessons, look-up vs best model vs guessing, per-crop verdicts (Simple) and all five India tables (Technical). |
 
-![Predict page, Simple mode, light](screenshots/phase2/simple_light_predict_1440.png)
+![Predict page, Simple mode, light](docs/screenshots/p2_simple_light_predict_1440.png)
 
-![Predict page, Technical mode, dark](screenshots/phase2/technical_dark_predict_1440.png)
+![Predict page, Technical mode, dark](docs/screenshots/p2_technical_dark_predict_1440.png)
 
-![Model comparison, Technical mode, light](screenshots/phase2/technical_light_model_comparison_1440.png)
+![Model comparison, Technical mode, light](docs/screenshots/p2_technical_light_model_comparison_1440_full.png)
 
 ### The 90 % prediction range
 
@@ -363,7 +363,8 @@ CropYieldPrediction/
 │   └── config.toml            # Light + dark themes from ui/theme.py, bundled fonts, no file watcher
 ├── docs/
 │   ├── VIVA_NOTES.md          # Likely examiner questions with short answers
-│   └── screenshots/           # Earlier app versions (v2_, archive/); current ones are in screenshots/phase2/
+│   └── screenshots/           # Curated app screenshots (p2_*, p3_*); earlier versions (v2_, archive/). Full
+│                              # per-phase captures go to screenshots/ (git-ignored, local only)
 ├── app.py                     # Streamlit entry point: theme, header, mode switch, navigation
 ├── run.py                     # One-command entry point: set up what's missing, then launch (dev/build/check/app)
 ├── start.bat                  # Double-click launcher for Windows; runs python run.py

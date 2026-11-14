@@ -5,6 +5,9 @@ Audit date: 2026-11-14. Commit audited: `511cdfe`.
 
 Every number in this file was produced in this session by a fresh `git clone` of the repo, with a fresh virtual environment built from `requirements-lock.txt` (Python 3.14.4, Windows 11, 16 logical CPUs). Nothing was copied from the old outputs. The original working folder was only read: no code, notebook, data or result file in it was changed.
 
+
+> **Screenshots:** since Phase 3 the per-phase captures in `screenshots/` (Phase 0 audit, `phase1/`, `phase2/`, `phase3/`) are git-ignored and local only; they were also removed from the unpushed history (with approval). A curated set is committed in `docs/screenshots/` (`p2_*`, `p3_*`). Paths below that start with `screenshots/` refer to the local folder.
+
 ---
 
 ## Phase 2 results (2026-11-14): UI redesign
