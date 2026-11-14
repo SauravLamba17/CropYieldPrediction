@@ -6,7 +6,7 @@ import streamlit as st
 
 from src import config
 from ui import charts, data, labels, plain
-from ui.components import card_title, headline_card
+from ui.components import caption, card_title, headline_card, show_table
 from ui.plain import TIPS
 from ui.report import report_csv, report_frame, report_pdf
 from ui.theme import GROUP_SERIES, tip
@@ -71,7 +71,8 @@ with st.container(key="card-inputs"):
                 for feature in features:
                     input_widget(feature)
 
-base_value, contributions = data.explanation(inputs)
+with st.spinner("Explaining this prediction (the first time takes a few seconds)…", show_time=True):
+    base_value, contributions = data.explanation(inputs)
 series = pd.Series(contributions)
 ranked = series.reindex(series.abs().sort_values(ascending=False).index)
 top, rest = ranked.iloc[:TOP_CONTRIBUTIONS], ranked.iloc[TOP_CONTRIBUTIONS:]
@@ -97,15 +98,13 @@ if simple:
             f"{tip(TIPS['average'], left=True)}</p>"
         )
     with chart_col, st.container(key="card-explain"):
-        toggle, pick = st.columns([11, 9], vertical_alignment="center")
-        with toggle:
-            view = st.segmented_control("Explain", [WHY, WHAT_IF], required=True,
-                                        key="explain_view", label_visibility="collapsed")
+        # The toggle gets its own row: beside a title it was clipped at 1024 px.
+        view = st.segmented_control("Explain", [WHY, WHAT_IF], required=True,
+                                    key="explain_view", label_visibility="collapsed")
         if view == WHAT_IF:
-            with pick:
-                factor = st.selectbox("Factor", config.NUMERIC_FEATURES,
-                                      format_func=lambda f: labels.name(f, True),
-                                      key="whatif_feature", label_visibility="collapsed")
+            factor = st.selectbox("Factor", config.NUMERIC_FEATURES,
+                                  format_func=lambda f: labels.name(f, True),
+                                  key="whatif_feature", label_visibility="collapsed")
             curve = data.whatif_curve(factor, inputs)
             st.altair_chart(charts.curve_chart(curve, st.session_state[f"in_{factor}"],
                                                labels.label(factor, True), 170,
@@ -113,8 +112,7 @@ if simple:
             st.html(f'<p class="plain-text">{plain.curve_caption(labels.name(factor, True), labels.unit(factor), curve["x"], curve["y"])}'
                     f"{tip(TIPS['whatif'], left=True)}</p>")
         else:
-            with pick:
-                card_title("What moved it (t/ha)", help_text=TIPS["contributions"])
+            card_title("What moved it (t/ha)", help_text=TIPS["contributions"])
             rows = [{"feature": labels.name(f, True), "value": float(v)} for f, v in top.items()]
             rows.append({"feature": f"Other factors ({len(rest)})", "value": float(rest.sum())})
             chart_data = pd.DataFrame(rows).assign(order=range(len(rows)))
@@ -150,6 +148,31 @@ else:
                 "shown": ", ".join(labels.name(f) for f in rest.index)}]
         )
         st.altair_chart(charts.waterfall_chart(base_value, steps, predicted, height=300))
+
+coverage = data.load_table("conformal_groups")
+if not simple and band and coverage is not None:
+    with st.container(key="card-coverage"):
+        card_title(
+            "Is the 90% range equally good for every group?",
+            f"Share of the {band['n_test']} test fields whose real yield fell inside the range",
+            help_text=TIPS["coverage_groups"],
+        )
+        shown = coverage.assign(
+            group_by=coverage["group_by"].map(labels.name),
+            coverage=coverage["coverage"].map(lambda c: f"{c:.1%}"),
+            vs_target=(coverage["coverage"] - band["level"]).map(lambda d: f"{d * 100:+.1f} pts".replace("-", "−")),
+        ).rename(columns={"group_by": "Grouped by", "group": "Group", "n": "Test fields",
+                          "coverage": "Coverage", "vs_target": "vs 90%"})
+        left, right = st.columns(2, gap="medium")
+        for column, name in zip((left, right), ("Crop type", "Region")):
+            with column:
+                show_table(shown[shown["Grouped by"] == name].drop(columns="Grouped by"))
+        low = coverage.loc[coverage["coverage"].idxmin()]
+        caption(
+            f"Overall coverage {band['test_coverage']:.1%}; lowest group {labels.name(low['group_by']).lower()} "
+            f"{low['group']} at {low['coverage']:.1%}. One width (± {band['quantile']:.2f} t/ha) is used for every "
+            "field, so groups whose yields are harder to predict are covered less than 90% and easier ones more."
+        )
 
 with st.container(key="card-report"):
     left, csv_col, pdf_col = st.columns([6, 2, 2], vertical_alignment="center")
