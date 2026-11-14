@@ -12,6 +12,7 @@ import joblib
 import matplotlib.pyplot as plt
 import pandas as pd
 from sklearn.base import RegressorMixin, clone
+from sklearn.metrics import root_mean_squared_error
 from sklearn.model_selection import GroupKFold
 
 from src import config
@@ -79,16 +80,29 @@ def run_group_cv(
 
 
 def run_final_test(
-    models: dict[str, RegressorMixin], train_df: pd.DataFrame, test_df: pd.DataFrame
+    models: dict[str, RegressorMixin],
+    train_df: pd.DataFrame,
+    test_df: pd.DataFrame,
+    order: list[str],
 ) -> tuple[pd.DataFrame, dict[str, RegressorMixin]]:
-    """Fit every model on the full training split and evaluate ONCE on the test split."""
+    """Fit every model on the full training split and evaluate ONCE on the test split.
+
+    Rows follow `order` (the CV ranking, i.e. the selection criterion), not the test score.
+    train_rmse is the error on the training split itself, to show the train/test gap.
+    """
     X_train, y_train = split_xy(train_df)
     X_test, y_test = split_xy(test_df)
     fitted, rows = {}, []
     for name, model in models.items():
         fitted[name] = clone(model).fit(X_train, y_train)
-        rows.append({"model": name, **holdout_metrics(y_test, fitted[name].predict(X_test))})
-    results = pd.DataFrame(rows).sort_values("rmse").reset_index(drop=True)
+        rows.append(
+            {
+                "model": name,
+                **holdout_metrics(y_test, fitted[name].predict(X_test)),
+                "train_rmse": root_mean_squared_error(y_train, fitted[name].predict(X_train)),
+            }
+        )
+    results = pd.DataFrame(rows).set_index("model").loc[order].reset_index()
     results.to_csv(config.TABLES_DIR / "test_results.csv", index=False)
     return results, fitted
 
@@ -112,13 +126,16 @@ def plot_results(
     best_linear: str,
 ) -> None:
     """Model-comparison bar chart and predicted-vs-actual plots."""
-    ordered = test_results.sort_values("rmse", ascending=False)
+    ordered = test_results.iloc[::-1]  # CV ranking, best at the top of the horizontal bars
     fig, ax = plt.subplots(figsize=(8, 5))
     colors = ["grey" if m == "dummy_mean" else "tab:blue" for m in ordered["model"]]
     ax.barh(ordered["model"], ordered["rmse"], color=colors)
     for y_pos, value in enumerate(ordered["rmse"]):
         ax.text(value, y_pos, f" {value:.3f}", va="center", fontsize=9)
-    ax.set(xlabel="Test RMSE (t/ha, lower is better)", title="Held-out test RMSE by model")
+    ax.set(
+        xlabel="Test RMSE (t/ha, lower is better)",
+        title="Held-out test RMSE by model (ranked by CV RMSE, the selection criterion)",
+    )
     save_figure(fig, "model_comparison")
     plt.close(fig)
 
@@ -204,7 +221,7 @@ def main() -> None:
     print("\nGroupKFold by region:\n" + group_cv.round(4).to_string(index=False))
 
     # --- The ONLY place the Kaggle test split is used. Nothing is changed after this. ---
-    test_results, fitted = run_final_test(models, train_df, test_df)
+    test_results, fitted = run_final_test(models, train_df, test_df, list(cv_all["model"]))
     print("\nTest results:\n" + test_results.round(4).to_string(index=False))
 
     print("\nBest params:", json.dumps(save_best_params(fitted), indent=2))

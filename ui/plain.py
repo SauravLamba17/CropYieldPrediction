@@ -278,8 +278,11 @@ def model_headline(rmse: float, mean_yield: float, r2: float, baseline_rmse: flo
 
 
 def tie_note(errors: list[float]) -> str:
-    """How many of the top models are within 0.01 t/ha of the best (a practical tie)."""
-    close = sum(e - errors[0] < 0.01 for e in errors)
+    """How many models are within 0.01 t/ha of the first one (a practical tie).
+
+    errors: test errors in leaderboard order (the first is the selected model).
+    """
+    close = sum(abs(e - errors[0]) < 0.01 for e in errors)
     return (
         f"The top {close} are within 0.01 t/ha of each other: practically a tie."
         if close > 1

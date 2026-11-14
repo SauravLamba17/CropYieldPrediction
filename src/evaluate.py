@@ -51,6 +51,15 @@ def cross_validate_models(
     return pd.DataFrame(rows).sort_values("rmse_mean").reset_index(drop=True)
 
 
+def leaderboard(cv: pd.DataFrame, test: pd.DataFrame) -> pd.DataFrame:
+    """Test results ranked by mean CV RMSE, the criterion the deployed model was chosen by.
+
+    The test columns are kept as they are; the CV mean and std are added alongside.
+    """
+    board = cv[["model", "rmse_mean", "rmse_std"]].merge(test, on="model", how="inner")
+    return board.sort_values("rmse_mean", kind="stable").reset_index(drop=True)
+
+
 def holdout_metrics(y_true: pd.Series, y_pred: np.ndarray) -> dict[str, float]:
     """RMSE, MAE and R^2 for a single held-out evaluation."""
     return {

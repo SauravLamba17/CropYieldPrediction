@@ -18,6 +18,7 @@ from sklearn.base import RegressorMixin
 
 from src import config
 from src.data import load_split
+from src.evaluate import leaderboard
 from src.explain import RawFeatureExplainer
 from ui import charts, plain
 from ui.plain import FRIENDLY, PLAIN_MODEL_NAMES, TIPS
@@ -27,13 +28,13 @@ st.set_page_config(page_title="Crop Yield Prediction", page_icon="🌾", layout=
 inject_theme()
 
 TOP_CONTRIBUTIONS = 8  # the explanation chart shows the 8 largest; the rest are summed
-TIE_TOLERANCE = 0.001  # models within 0.001 t/ha of the best test RMSE count as tied best
 CURVE_POINTS = 40  # what-if and response curves sweep each factor over 40 values
 CURVE_SAMPLE = 300  # response curves average the prediction over 300 training fields
 SIMPLE, TECHNICAL = "Simple", "Technical"
 WHY, WHAT_IF = "Why this prediction", "What if I change…"
 PRESETS = ["Typical field", "Ideal field", "Drought year", "Low-input farm"]
 MINUS = "−"  # typographic minus sign for signed numbers
+SELECTION_NOTE = "Selected by cross-validation; test set used once for final evaluation."
 MODEL_LABELS = {
     "dummy_mean": "Mean baseline",
     "simple_lr": "Simple linear (fertilizer only)",
@@ -52,6 +53,10 @@ COLUMN_LABELS = {
     "rmse": "RMSE",
     "mae": "MAE",
     "r2": "R²",
+    "train_rmse": "Train RMSE",
+    "test_rmse": "Test RMSE",
+    "test_mae": "Test MAE",
+    "test_r2": "Test R²",
     "rmse_mean": "CV RMSE",
     "rmse_std": "CV RMSE (sd)",
     "mae_mean": "CV MAE",
@@ -258,7 +263,10 @@ def table_view(frame: pd.DataFrame) -> "pd.io.formats.style.Styler":
     if "predictor" in df:
         df["predictor"] = df["predictor"].str.replace(" x ", " × ").str.capitalize()
     numeric = list(df.select_dtypes("number"))
-    metric_cols = [c for c in numeric if not c.endswith("_std") and not c.startswith("delta")]
+    # Spreads, deltas and training-set errors are context, not something to be "best" at.
+    metric_cols = [
+        c for c in numeric if not c.endswith("_std") and not c.startswith(("delta", "train_"))
+    ]
     lower_better = [c for c in metric_cols if any(t in c for t in ("rmse", "mae", "median_abs"))]
     higher_better = [c for c in metric_cols if "r2" in c]
     best = {}
@@ -536,17 +544,16 @@ with tab_predict:
 
 with tab_models:
     results = load_table("test_results")
-    if results is None:
-        st.info("test_results.csv not found — run `python run.py` first.")
+    cv_results = load_table("cv_all_models")
+    if results is None or cv_results is None:
+        st.info("test_results.csv / cv_all_models.csv not found — run `python run.py` first.")
     else:
-        ranked = results.sort_values("rmse").reset_index(drop=True)
+        # Ranked by CV RMSE: the criterion the saved model was chosen by. The test set is
+        # shown alongside but never used to rank or pick.
+        ranked = leaderboard(cv_results, results)
         models_only = ranked[ranked["model"] != "dummy_mean"]
-        best = models_only.iloc[0]
-        best_r2 = models_only.loc[models_only["r2"].idxmax()]
         baseline = ranked.loc[ranked["model"] == "dummy_mean", "rmse"].iloc[0]
-        tied = set(models_only.loc[models_only["rmse"] - best["rmse"] <= TIE_TOLERANCE, "model"])
-        tied_labels = " · ".join(MODEL_LABELS[m] for m in models_only["model"] if m in tied)
-        saved_best = results.set_index("model").loc[names["best_overall"]]  # the app's model
+        saved_best = ranked.set_index("model").loc[names["best_overall"]]  # the app's model
         headline_card(
             plain.model_headline(
                 saved_best["rmse"], summary["test_mean"], saved_best["r2"], baseline
@@ -592,8 +599,9 @@ with tab_models:
             with board_side, st.container(key="card-board", height="stretch"):
                 card_title(
                     "Leaderboard",
-                    f"Typical error on {summary['n_test']} fields the models never saw",
-                    help_text=TIPS["test"],
+                    f"Ranked by cross-validation · typical error on {summary['n_test']} fields "
+                    "the models never saw",
+                    help_text=TIPS["cv"],
                 )
                 medals = ["🥇", "🥈", "🥉"]
                 rows = []
@@ -614,6 +622,7 @@ with tab_models:
                 st.html(
                     f'<table class="board">{"".join(rows)}</table>'
                     + (f'<p class="card-caption">{note}</p>' if note else "")
+                    + f'<p class="card-caption">{SELECTION_NOTE}{tip(TIPS["test"], left=True)}</p>'
                 )
             with scatter_side, st.container(key="card-scatter", height="stretch"):
                 card_title(
@@ -623,22 +632,24 @@ with tab_models:
                 )
                 st.altair_chart(charts.scatter_chart(held_out_predictions(), 280), theme=None)
         else:
+            selected_label = MODEL_LABELS[names["best_overall"]]
             with k1:
                 kpi_card(
-                    "Best test error (RMSE)",
-                    f"{best['rmse']:.3f}",
+                    "Selected model: CV RMSE",
+                    f"{saved_best['rmse_mean']:.3f}",
                     "t/ha",
-                    tied_labels,
+                    f"{selected_label} · ± {saved_best['rmse_std']:.3f} over "
+                    f"{config.CV_FOLDS} folds",
                     accent=True,
-                    help_text=TIPS["rmse"],
+                    help_text=TIPS["cv"],
                 )
             with k2:
                 kpi_card(
-                    "Best R²",
-                    f"{best_r2['r2']:.2f}",
-                    "",
-                    f"{MODEL_LABELS[best_r2['model']]} on {summary['n_test']} held-out fields",
-                    help_text=TIPS["r2"],
+                    "Test RMSE (used once)",
+                    f"{saved_best['rmse']:.3f}",
+                    "t/ha",
+                    f"R² {saved_best['r2']:.2f} on {summary['n_test']} held-out fields",
+                    help_text=TIPS["test"],
                 )
             with k3:
                 kpi_card(
@@ -651,7 +662,7 @@ with tab_models:
             with k4:
                 kpi_card(
                     "Improvement over baseline",
-                    f"{1 - best['rmse'] / baseline:.0%}",
+                    f"{1 - saved_best['rmse'] / baseline:.0%}",
                     "",
                     "Lower test RMSE than the mean baseline",
                     help_text=TIPS["improvement"],
@@ -660,31 +671,40 @@ with tab_models:
             chart_side, table_side = st.columns([11, 10], gap="medium")
             with chart_side, st.container(key="card-model-chart", height="stretch"):
                 card_title(
-                    "Held-out test error by model",
-                    "RMSE in t/ha — lower is better",
-                    help_text=TIPS["rmse"],
+                    "Cross-validation error by model",
+                    f"Mean RMSE over {config.CV_FOLDS} folds in t/ha — lower is better; "
+                    "the lowest is selected",
+                    help_text=TIPS["cv"],
                 )
                 chart_data = ranked.assign(label=ranked["model"].map(MODEL_LABELS))
                 st.altair_chart(
                     charts.ranked_bar_chart(
                         chart_data,
                         "label",
-                        "rmse",
-                        "Test RMSE (t/ha)",
+                        "rmse_mean",
+                        "CV RMSE (t/ha)",
                         ".3f",
                         height=300,
-                        highlight={MODEL_LABELS[m] for m in tied},
+                        highlight={selected_label},
                         muted={MODEL_LABELS["dummy_mean"]},
                     ),
                     theme=None,
                 )
             with table_side, st.container(key="card-model-table", height="stretch"):
                 card_title(
-                    "Test-set results",
-                    f"{summary['n_test']} held-out fields · best value per column highlighted",
+                    "Results by model",
+                    f"Ranked by CV RMSE · test = {summary['n_test']} held-out fields · best "
+                    "value per column highlighted",
                     help_text=TIPS["metrics"],
                 )
-                show_table(ranked[["model", "rmse", "mae", "r2"]])
+                columns = ["model", "rmse_mean", "rmse_std", "train_rmse", "rmse", "mae", "r2"]
+                columns = [c for c in columns if c in ranked]  # tables from older builds
+                show_table(
+                    ranked[columns].rename(
+                        columns={"rmse": "test_rmse", "mae": "test_mae", "r2": "test_r2"}
+                    )
+                )
+                st.html(f'<p class="card-caption">{SELECTION_NOTE}</p>')
 
 with tab_drivers:
     agreement = load_table("importance_agreement")
