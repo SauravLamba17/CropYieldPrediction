@@ -6,14 +6,14 @@ rem Arguments pass through to run.py, e.g.:  start.bat check   /   start.bat bui
 rem Work from this script's folder, wherever it was launched from.
 cd /d "%~dp0"
 
-rem Find a real Python 3.10+ (the "python" Microsoft Store stub does not count).
+rem Find a real Python 3.12+ (the "python" Microsoft Store stub does not count).
 set "PY="
-py -3 -c "import sys; sys.exit(sys.version_info < (3, 10))" >nul 2>nul && set "PY=py -3"
-if not defined PY python -c "import sys; sys.exit(sys.version_info < (3, 10))" >nul 2>nul && set "PY=python"
+py -3 -c "import sys; sys.exit(sys.version_info < (3, 12))" >nul 2>nul && set "PY=py -3"
+if not defined PY python -c "import sys; sys.exit(sys.version_info < (3, 12))" >nul 2>nul && set "PY=python"
 if not defined PY (
-    echo Python 3.10 or newer was not found on this computer.
+    echo Python 3.12 or newer was not found on this computer.
     echo Install it from https://www.python.org/downloads/ ^(tick "Add python.exe to PATH"^),
-    echo then double-click start.bat again.
+    echo then double-click start.bat again. ^(The pinned packages need 3.12+.^)
     pause
     exit /b 1
 )

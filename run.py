@@ -25,12 +25,19 @@ from src import config  # plain pathlib constants: importable before any install
 ROOT = config.ROOT
 VENV_DIR = ROOT / ".venv"
 VENV_PYTHON = VENV_DIR / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
-VENV_PYTHON_SHOWN = r".venv\Scripts\python.exe"  # how the re-run hints are printed
+VENV_PYTHON_SHOWN = (  # how the re-run hints are printed
+    r".venv\Scripts\python.exe" if sys.platform == "win32" else ".venv/bin/python"
+)
 KAGGLE_DIR = Path.home() / ".kaggle"
 KAGGLE_TOKEN_FILES = [KAGGLE_DIR / "access_token", KAGGLE_DIR / "kaggle.json"]  # existence only
 COMPETITION = "crop-yield-prediction-challenge"
 MENDELEY_URL = "https://data.mendeley.com/datasets/ncw2vbcgnk"
 APP_PORT = 8501
+# Windows gets the full lock that produced the reported numbers; elsewhere the pinned
+# cross-platform set (same versions, minus Windows-only packages).
+REQUIREMENTS = (
+    "requirements-lock-windows.txt" if sys.platform == "win32" else "requirements-dev.txt"
+)
 
 # Files the app cannot start without; all are written by `python -m src.pipeline`.
 PIPELINE_OUTPUTS = [
@@ -105,7 +112,7 @@ def rel(path: Path) -> str:
 
 
 def step_environment(n: int, total: int) -> None:
-    """Create .venv and install the exact locked versions, if .venv is missing."""
+    """Create .venv and install the pinned versions (REQUIREMENTS), if .venv is missing."""
     header(n, total, "Python environment", "first run only, a few minutes")
     if VENV_PYTHON.exists():
         skipped(rel(VENV_PYTHON) + " exists")
@@ -116,9 +123,9 @@ def step_environment(n: int, total: int) -> None:
         rerun="python -m venv .venv",
     )
     run_command(
-        "Install packages (requirements-lock.txt)",
-        [str(VENV_PYTHON), "-m", "pip", "install", "-r", "requirements-lock.txt"],
-        rerun=f"{VENV_PYTHON_SHOWN} -m pip install -r requirements-lock.txt",
+        f"Install packages ({REQUIREMENTS})",
+        [str(VENV_PYTHON), "-m", "pip", "install", "-r", REQUIREMENTS],
+        rerun=f"{VENV_PYTHON_SHOWN} -m pip install -r {REQUIREMENTS}",
     )
 
 
