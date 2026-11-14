@@ -20,7 +20,7 @@ if perm is None or shap_table is None or coefs is None:
     setup_card(
         "Setup needed: the explainability tables are missing",
         "Permutation importance, mean |SHAP| and the bootstrap coefficients are computed once by "
-        "the pipeline (about 6 minutes) and saved to <code>results/tables/</code>. Build them with:",
+        "the pipeline (5 to 17 minutes measured on a laptop) and saved to <code>results/tables/</code>. Build them with:",
         command="python -m src.explain_tables",
     )
     st.stop()
