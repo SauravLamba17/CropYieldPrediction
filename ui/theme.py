@@ -34,6 +34,7 @@ def purple(alpha: float) -> str:
 CARD_KEY_PREFIX = "card-"  # every white card is a st.container(key="card-...")
 SELECTOR_KEYS = ["india_table", "drivers_view", "explain_view", "preset", "mode"]
 MODE_TOGGLE_WIDTH = 196  # px, the Simple / Technical control (the tab pills sit to its left)
+TABS_OWN_ROW_BELOW = 1360  # px viewport width; narrower and the pill row would hit the title
 
 
 def _sel(inner: str) -> str:
@@ -172,6 +173,42 @@ header[data-testid="stHeader"], footer, [data-testid="stSidebar"],
 [data-testid="stMainBlockContainer"] {{ position: relative; }}
 .st-key-mode {{ position: absolute; top: calc(0.6rem + 9px); right: 2rem; width: auto; z-index: 6; }}
 [data-testid="stTabs"] [role="tablist"] {{ right: {MODE_TOGGLE_WIDTH + 14}px; }}
+
+/* --- Responsive header (PROGRESS.md I1): the pills never overlap the title, every tab stays
+   reachable. Title text (~330 px) + pill row (~754 px) + toggle (210 px) + padding need about
+   1344 px, so below TABS_OWN_ROW_BELOW the pills take their own row under the title. --- */
+@media (max-width: {TABS_OWN_ROW_BELOW - 0.02}px) {{
+    [data-testid="stTabs"] {{ margin-top: 0; }}
+    [data-testid="stTabs"] [role="tablist"] {{
+        position: static; flex-wrap: wrap; row-gap: 6px; overflow: visible; margin-bottom: 0.4rem;
+    }}
+}}
+/* Below 1200 px the four input groups go 2 × 2, so slider labels and dropdowns get room. */
+@media (max-width: 1199.98px) {{
+    .st-key-card-inputs [data-testid="stHorizontalBlock"]:has(.st-key-in_avg_temperature)
+        > [data-testid="stColumn"] {{
+        flex: 1 1 calc(50% - 2rem) !important; min-width: calc(50% - 2rem) !important;
+    }}
+    /* card header: title on its own line, then the scenario pills and the Reset button */
+    .st-key-card-inputs [data-testid="stHorizontalBlock"]:has(.st-key-preset)
+        > [data-testid="stColumn"]:first-child {{ flex: 1 1 100% !important; min-width: 100% !important; }}
+    .st-key-card-inputs [data-testid="stHorizontalBlock"]:has(.st-key-preset)
+        > [data-testid="stColumn"]:last-child {{
+        flex: 0 0 auto !important; width: auto !important; min-width: 180px !important;
+    }}
+}}
+/* Below 900 px the prediction hero and its explanation card stack instead of squeezing. */
+@media (max-width: 899.98px) {{
+    [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] [class*="st-key-hero-"])
+        > [data-testid="stColumn"] {{ flex: 1 1 100% !important; min-width: 100% !important; }}
+}}
+/* Below 900 px: slimmer pills so the wrapped rows stay short. */
+@media (max-width: 899.98px) {{
+    [data-testid="stTab"] {{ padding: 5px 12px; }}
+    [data-testid="stTab"] p {{ font-size: 14px; }}
+}}
+/* Never break a label in the middle of a word ("Phosphor/us"). */
+[data-testid="stWidgetLabel"] p {{ word-break: normal; overflow-wrap: normal; hyphens: manual; }}
 
 /* --- "In simple words" headline card --- */
 .headline {{
