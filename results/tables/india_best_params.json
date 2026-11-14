@@ -13,5 +13,17 @@
     "regressor__model__n_estimators": 724,
     "regressor__model__reg_lambda": 0.14254757044027438,
     "regressor__model__subsample": 0.7159005811655073
+  },
+  "polynomial": {
+    "alpha": 10.985411419875572
+  },
+  "ridge": {
+    "alpha": 0.3727593720314938
+  },
+  "lasso": {
+    "alpha": 3.237457542817647e-05
+  },
+  "polynomial_deg3": {
+    "alpha": 8.286427728546842
   }
 }

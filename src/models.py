@@ -1,13 +1,15 @@
 """Model definitions. Every model is a full Pipeline: preprocessing + regressor."""
 
+import copy
+
 import numpy as np
 from scipy.stats import loguniform, randint, uniform
 from sklearn.base import RegressorMixin
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.dummy import DummyRegressor
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.linear_model import LassoCV, LinearRegression, RidgeCV
-from sklearn.model_selection import BaseCrossValidator, RandomizedSearchCV
+from sklearn.linear_model import Lasso, LassoCV, LinearRegression, Ridge, RidgeCV
+from sklearn.model_selection import BaseCrossValidator, GridSearchCV, RandomizedSearchCV
 from sklearn.pipeline import Pipeline, make_pipeline
 
 try:
@@ -24,6 +26,9 @@ from src.data import make_kfold
 from src.features import build_preprocessor
 
 RIDGE_ALPHAS = np.logspace(-3, 3, 50)
+# Only used when the penalty is tuned on given folds (India): LassoCV builds its own
+# data-driven grid, GridSearchCV needs an explicit one. 50 values, 1e-5 to 1.
+LASSO_ALPHAS = np.logspace(-5, 0, 50)
 LASSO_MAX_ITER = 20000
 POLY_DEGREE = 2
 CUBIC_DEGREE = 3
@@ -61,11 +66,17 @@ def get_linear_models(
     numeric: list[str] = config.NUMERIC_FEATURES,
     categorical: list[str] = config.CATEGORICAL_FEATURES,
     log_target: bool = False,
+    cv: BaseCrossValidator | None = None,
 ) -> dict[str, RegressorMixin]:
     """Baseline + linear model family, each as an unfitted pipeline.
 
     simple_feature: the single numeric feature for simple_lr. It must be chosen
         on the TRAINING split only (see src.eda.top_pearson_feature).
+    cv: None (Kaggle) tunes the penalty with RidgeCV (efficient leave-one-out) and
+        LassoCV (5 unshuffled folds). If a splitter is given (India: time-ordered year
+        blocks), Ridge/Lasso are instead wrapped in a GridSearchCV over the same alpha
+        grid on those folds, so the penalty is never chosen by scoring on past years
+        with a model that saw later ones.
     """
     models = {
         "dummy_mean": make_pipeline(
@@ -94,7 +105,36 @@ def get_linear_models(
             build_preprocessor(numeric, categorical, poly_degree=CUBIC_DEGREE),
             RidgeCV(alphas=RIDGE_ALPHAS),
         )
-    return {name: wrap_target(model, log_target) for name, model in models.items()}
+    models = {name: wrap_target(model, log_target) for name, model in models.items()}
+    if cv is not None:
+        for name in [n for n in PENALISED_LINEAR if n in models]:
+            models[name] = time_tuned(models[name], log_target, cv)
+    return models
+
+
+PENALISED_LINEAR = ["polynomial", "ridge", "lasso", "polynomial_deg3"]
+
+
+def time_tuned(model: RegressorMixin, log_target: bool, cv: BaseCrossValidator) -> RegressorMixin:
+    """Swap RidgeCV/LassoCV for plain Ridge/Lasso and tune alpha with GridSearchCV on `cv`.
+
+    Only the folds change: like RidgeCV/LassoCV, the search sits INSIDE the log-target
+    wrapper, so alpha is still chosen by squared error on the modelling (log) scale.
+    Scoring in original units instead overflows expm1 for weakly penalised candidates on
+    later years (NaN scores that silently drop those candidates).
+    """
+    pipe = model.regressor if log_target else model
+    if isinstance(pipe[-1], LassoCV):
+        step, penalised, grid = "lasso", Lasso(max_iter=LASSO_MAX_ITER), LASSO_ALPHAS
+    else:
+        step, penalised, grid = "ridge", Ridge(), RIDGE_ALPHAS
+    pipe = Pipeline([*pipe.steps[:-1], (step, penalised)])
+    # n_jobs=-1: a cold-started Lasso grid is slow (about 12 min serially on India); inside an
+    # already-parallel outer CV joblib runs it serially, so cores are never oversubscribed.
+    search = GridSearchCV(
+        pipe, {f"{step}__alpha": grid}, cv=cv, scoring="neg_mean_squared_error", n_jobs=-1
+    )
+    return wrap_target(search, log_target)
 
 
 def get_nonlinear_models(
@@ -151,8 +191,14 @@ def deployable(model: RegressorMixin) -> RegressorMixin:
 
     Saving the search wrapper would also pickle its CV splitter, which is not needed
     for prediction and breaks loading when the splitter is defined in a __main__ script.
+    A search inside a log-target wrapper (time_tuned) is replaced by its best estimator too.
     """
-    return getattr(model, "best_estimator_", model)  # only fitted searches have it
+    model = getattr(model, "best_estimator_", model)  # only fitted searches have it
+    inner = getattr(model, "regressor_", None)
+    if isinstance(model, TransformedTargetRegressor) and hasattr(inner, "best_estimator_"):
+        model = copy.copy(model)  # shallow copy: the caller's fitted model is left as it is
+        model.regressor_ = inner.best_estimator_
+    return model
 
 
 def fitted_pipeline(model: RegressorMixin) -> Pipeline:
@@ -169,5 +215,10 @@ def final_estimator(model: RegressorMixin) -> RegressorMixin:
 
 
 def chosen_alpha(model: RegressorMixin) -> float | None:
-    """Regularisation strength picked by RidgeCV/LassoCV, or None for other models."""
-    return getattr(final_estimator(model), "alpha_", None)
+    """Regularisation strength picked by RidgeCV/LassoCV or a GridSearchCV, else None."""
+    estimator = final_estimator(model)
+    if hasattr(estimator, "alpha_"):  # RidgeCV / LassoCV
+        return estimator.alpha_
+    if isinstance(estimator, (Ridge, Lasso)):  # tuned by time_tuned's GridSearchCV
+        return estimator.alpha
+    return None

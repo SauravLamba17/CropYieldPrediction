@@ -8,6 +8,8 @@ Wording stays descriptive ("the model predicts", "is associated with"), never ca
 import numpy as np
 
 MINUS = "−"
+# The India data mixes units across crops, so its errors are never labelled t/ha.
+INDIA_UNIT = "yield units"
 
 FRIENDLY = {  # feature -> everyday name (Simple mode charts and sentences)
     "soil_ph": "Soil pH",
@@ -104,6 +106,12 @@ TIPS = {  # one-line explanations behind every ⓘ (both modes)
     "time_cv": (
         "Cross-validation where every check scores the model only on years later than the "
         "ones it trained on. sd = spread across the checks."
+    ),
+    "india_units": (
+        "The India records use each crop's own unit: most crops are in tonnes per hectare, "
+        "but in Indian crop statistics cotton is counted in bales of 170 kg and jute, mesta "
+        "and sannhemp in bales of 180 kg (coconut, counted in nuts, is left out). One error "
+        "across all crops therefore has no single unit."
     ),
     "relative": (
         "The crop's typical error divided by its average yield. Under 50% is labelled 'works well'."
@@ -313,8 +321,8 @@ def india_headline(lookup_rmse: float, best_rmse: float, crop_share: float) -> s
     return (
         f"On real Indian crop records, the crop grown explains most of the yield "
         f"(<b>{pct(crop_share)}</b>), and a simple crop-by-state look-up "
-        f"(<b>{lookup_rmse:.2f} t/ha</b> typical error) {comparison} the best model "
-        f"(<b>{best_rmse:.2f} t/ha</b>)."
+        f"(<b>{lookup_rmse:.2f} {INDIA_UNIT}</b> typical error) {comparison} the best model "
+        f"(<b>{best_rmse:.2f} {INDIA_UNIT}</b>)."
     )
 
 
@@ -329,7 +337,8 @@ def lesson_lookup(lookup_rmse: float, best_rmse: float, beats_every_model: bool)
     verdict = "It beats every model." if beats_every_model else "It comes close to the models."
     return f"{lookup_rmse:.2f} vs {best_rmse:.2f}", (
         f"A simple <b>look-up</b> of each crop's usual yield in each state is typically off by "
-        f"<b>{lookup_rmse:.2f} t/ha</b>, against <b>{best_rmse:.2f} t/ha</b> for the best "
+        f"<b>{lookup_rmse:.2f} {INDIA_UNIT}</b>, against <b>{best_rmse:.2f} {INDIA_UNIT}</b> "
+        "for the best "
         f"model. {verdict}"
     )
 

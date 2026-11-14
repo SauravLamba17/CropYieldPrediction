@@ -19,12 +19,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from sklearn.base import RegressorMixin, clone
+from sklearn.metrics import root_mean_squared_error
 from sklearn.model_selection import TimeSeriesSplit
 
 from src import config
 from src.eda import top_pearson_feature
 from src.evaluate import cross_validate_models, holdout_metrics
-from src.models import deployable, get_linear_models, get_nonlinear_models
+from src.models import (
+    PENALISED_LINEAR,
+    chosen_alpha,
+    deployable,
+    get_linear_models,
+    get_nonlinear_models,
+)
 from src.plots import save_figure
 
 logger = logging.getLogger(__name__)
@@ -139,6 +146,9 @@ def india_models(
 ) -> dict[str, RegressorMixin]:
     """The same model suite as Kaggle, on a log1p target, with time-ordered inner CV.
 
+    Every tuned model (tree searches and the Ridge/Lasso penalty) is tuned on
+    YearBlockSplit folds, the same time-ordered scheme as the evaluation.
+
     numeric: the numeric inputs to use (the ablation passes a reduced list). The
     preprocessor selects only these columns, so any other columns in X are ignored.
     """
@@ -150,6 +160,7 @@ def india_models(
         numeric,
         config.INDIA_CATEGORICAL_FEATURES,
         log_target=True,  # yield spans 0.01 to >1,000 across 54 crops (skew >> 1)
+        cv=YearBlockSplit(INDIA_INNER_CV_FOLDS),
     )
     trees = get_nonlinear_models(
         numeric,
@@ -169,7 +180,13 @@ def fit_and_test(
     fitted, rows = {}, []
     for name, model in models.items():
         fitted[name] = clone(model).fit(X_train, y_train)
-        rows.append({"model": name, **holdout_metrics(y_test, fitted[name].predict(X_test))})
+        rows.append(
+            {
+                "model": name,
+                **holdout_metrics(y_test, fitted[name].predict(X_test)),
+                "train_rmse": root_mean_squared_error(y_train, fitted[name].predict(X_train)),
+            }
+        )
     return pd.DataFrame(rows).sort_values("rmse").reset_index(drop=True), fitted
 
 
@@ -279,6 +296,8 @@ def main() -> None:
     # --- The ONLY place the India test years are used (main suite + ablation). ---
     X_test, _ = india_xy(test)
     test_results, fitted = fit_and_test(models, train, test)
+    # Saved in CV order (the selection criterion), like the Kaggle test_results.csv.
+    test_results = test_results.set_index("model").loc[cv["model"]].reset_index()
     test_results.to_csv(config.TABLES_DIR / "india_test.csv", index=False)
     print("\nIndia test (2016-2020):\n" + test_results.round(4).to_string(index=False))
 
@@ -300,6 +319,9 @@ def main() -> None:
     print(f"\nPer-crop test RMSE for {best_overall}:\n" + crops.round(3).to_string(index=False))
 
     params = {name: fitted[name].best_params_ for name in TREE_MODEL_NAMES}
+    params.update(
+        {name: {"alpha": float(chosen_alpha(fitted[name]))} for name in PENALISED_LINEAR}
+    )
     params = json.loads(json.dumps(params, default=float))
     (config.TABLES_DIR / "india_best_params.json").write_text(json.dumps(params, indent=2))
     # Only the model notebook 04 loads; best_tree is recorded by name (it is usually the same).
@@ -308,7 +330,7 @@ def main() -> None:
         json.dumps({"best_overall": best_overall, "best_tree": best_tree}, indent=2)
     )
 
-    ordered = test_results.sort_values("rmse", ascending=False)
+    ordered = test_results.iloc[::-1]  # CV ranking, best at the top of the horizontal bars
     fig, ax = plt.subplots(figsize=(8, 5))
     colors = ["grey" if m == "dummy_mean" else "tab:orange" for m in ordered["model"]]
     ax.barh(ordered["model"], ordered["rmse"], color=colors)
@@ -316,7 +338,7 @@ def main() -> None:
         ax.text(value, y_pos, f" {value:.2f}", va="center", fontsize=9)
     ax.set(
         xlabel="Test RMSE, 2016-2020 (yield units, mostly t/ha; lower is better)",
-        title="India: held-out test RMSE by model",
+        title="India: held-out test RMSE by model (ranked by time-ordered CV RMSE)",
     )
     save_figure(fig, "india_model_comparison")
     plt.close(fig)

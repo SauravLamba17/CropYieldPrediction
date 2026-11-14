@@ -79,7 +79,10 @@ COLUMN_LABELS = {
 INDIA_TABLES = {  # pill label -> (saved table, one-sentence caption, ⓘ text)
     "Test results": (
         "india_test",
-        "Every model trained on 1997–2015 and evaluated once on the 2016–2020 test years.",
+        (
+            "Every model trained on 1997–2015 and evaluated once on the 2016–2020 test years, "
+            "ranked by time-ordered CV RMSE (the selection criterion)."
+        ),
         TIPS["metrics"],
     ),
     "Look-up baseline": (
@@ -849,7 +852,7 @@ with tab_real:
             "To build it: 1. download <code>crop_yield.csv</code> from "
             '<a href="https://data.mendeley.com/datasets/ncw2vbcgnk" target="_blank">Mendeley '
             "Data</a>; 2. save it as <code>data/raw/india/crop_yield.csv</code>; 3. run "
-            "<code>python -m src.india</code> (about 26 minutes; <code>python run.py build</code> "
+            "<code>python -m src.india</code> (about 21 minutes; <code>python run.py build</code> "
             "rebuilds everything). The other four tabs work without it.",
         )
     else:
@@ -878,7 +881,8 @@ with tab_real:
             with compare_side, st.container(key="card-india-compare", height="stretch"):
                 card_title(
                     "Typical error on the 2016–2020 test years",
-                    "t/ha · lower is better",
+                    f"{plain.INDIA_UNIT} (varies by crop){tip(TIPS['india_units'])} · lower is "
+                    "better",
                     help_text=TIPS["rmse"],
                 )
                 guess = india_test.set_index("model").loc["dummy_mean", "rmse"]
@@ -898,7 +902,7 @@ with tab_real:
                         compare,
                         "label",
                         "rmse",
-                        "Typical error (t/ha)",
+                        f"Typical error ({plain.INDIA_UNIT})",
                         ".2f",
                         height=250,
                         highlight={compare["label"].iloc[0]},

@@ -53,6 +53,18 @@ def test_india_sentences():
     assert "does not beat" in plain.india_headline(9.0, 8.1195, 0.8337)
 
 
+def test_india_sentences_never_claim_t_per_ha():
+    """India yields mix units across crops (bales for cotton/jute), so no India text says t/ha."""
+    texts = [
+        plain.india_headline(7.8075, 8.1195, 0.8337),
+        plain.lesson_lookup(7.8075, 8.1195, beats_every_model=True)[1],
+        plain.lesson_crop(0.8337)[1],
+        plain.lesson_seasons(8, 10)[1],
+    ]
+    assert all("t/ha" not in t for t in texts)
+    assert "yield units" in texts[0] and "yield units" in texts[1]
+
+
 def test_tie_note_counts_models_within_a_hundredth():
     assert plain.tie_note([0.6461, 0.6462, 0.6526, 0.6533, 0.6533, 0.6635]).startswith("The top 5")
     assert plain.tie_note([0.60, 0.70]) == ""
