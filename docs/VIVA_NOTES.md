@@ -72,3 +72,31 @@ Fertilizer, then pesticide (negative), then rainfall, with the same top three un
 
 **Q: Why two SHAP methods?**
 TreeExplainer is exact and fast for XGBoost (used for global importance). The deployed polynomial model is not a tree, so the app explains each prediction with Kernel SHAP in the original feature space. The waterfall on the Predict page starts at the average prediction and adds each factor's push to reach this field's prediction.
+
+---
+
+## Explainability (Phase 3)
+
+**Q: You show three importance methods. What does each measure, and why can they disagree?**
+- *Permutation importance* shuffles one input across the 960 test fields and measures how much the test RMSE grows (30 repeats). It sees the model's whole behaviour, curves included. When two inputs carry the same information it can split the credit between them.
+- *Mean |SHAP|* is the average size of each input's push on single predictions. It also sees curves and interactions; for the polynomial model it comes from Kernel SHAP, for XGBoost from TreeExplainer.
+- *|Standardised coefficient|* is a straight-line slope per 1 sd in the multiple linear model. It cannot see a curve: a hump-shaped effect has a slope near zero.
+
+They disagree for exactly those reasons: non-linearity (soil pH), polynomial terms (squares and products credit an input through several terms) and correlated inputs (shared credit). Here they agree well where it matters. All three rank **fertilizer first**, then pesticide and rainfall. The Spearman rank correlations for the deployed model are **0.895** (permutation vs SHAP), **0.732** (permutation vs coefficient) and **0.736** (SHAP vs coefficient), average **0.79**. The biggest disagreement is **soil pH**: rank **4** by SHAP, **8** by permutation, **13** by coefficient.
+
+**Q: Tell us about the soil pH paradox.**
+On the 3,840 training fields soil pH has **Pearson r = +0.019** and **Spearman ρ = +0.018** with yield, so a correlation filter would drop it. Yet the deployed model's average prediction rises from **6.14 t/ha at pH 4.5** to a peak of **6.41 t/ha at pH 6.55**, then falls to **6.17 t/ha at pH 8.5**. Within 10 % of the peak, the optimum runs from pH **5.9 to 7.2**. A hump has almost no straight-line trend, which is all that correlation measures. The quadratic-term test on the training data agrees (p = 4.4 × 10⁻⁴). Lasso keeps pH, but only with a tiny straight-line coefficient (+0.010 t/ha per sd) whose 95 % bootstrap interval crosses zero. The effect is real but modest: about 0.27 t/ha across the whole pH range.
+
+**Q: Your coefficient chart greys out many terms. What does that mean?**
+Each linear model was refitted on 500 bootstrap resamples of the training fields; the bar is the middle 95 % of its coefficients. If that interval crosses zero we cannot tell the sign, so the term is "not distinguishable from zero". For the multiple linear model that is **11 of 21** terms, mostly the crop, region and season levels, which matches the finding that those inputs barely matter on this benchmark.
+
+**Q: Why does the two-factor heatmap stop at the edges of the data?**
+Each cell is a model prediction. Outside the values seen in training (for example fertilizer above the largest training value), a polynomial model extrapolates its curve and a tree model just repeats its last split, so the numbers would look precise but mean nothing. The grid is 25 × 25 over each input's observed minimum to maximum, and a test checks it never goes beyond them.
+
+## Conformal interval, in more detail
+
+**Q: Your 90 % range covered 88.5 %, not 90 %. Is it wrong?**
+No. The guarantee is "at least 90 % on average over many datasets", not on one finite test set. With 960 test fields the coverage estimate has a standard error of about 1 point, so 88.5 % (850 of 960) is within normal sampling variation. We report the measured value rather than claiming 90 %.
+
+**Q: Is it equally good for every crop and region?**
+Not exactly, and the app shows this (Predict page, Technical mode). On the test fields, coverage by crop runs from **85.9 %** (Rice) to **91.1 %** (Barley), and by region from **85.9 %** (West) to **92.0 %** (North). No group is below 85 %. One width (± 1.04 t/ha) is used for every field, so groups whose yields are harder to predict are covered less and easier ones more. A per-group width (Mondrian conformal) would even this out; it was left out to keep one simple, global method.

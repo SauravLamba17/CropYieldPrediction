@@ -281,7 +281,7 @@ Because these columns are really a national per-year index (section 4B), the ful
 
 A Streamlit app (`app.py` plus one script per page in `app_pages/`) makes the model explorable without any code, including for readers with no technical background. The design is "Field & Harvest": parchment and crop-green in light mode, a deep field-green in dark mode, with Manrope headings, Inter text and IBM Plex Mono numbers. The fonts are bundled in `static/fonts/` (OFL), and the app makes **no request to any other server**, so it looks the same on an offline projector laptop.
 
-- **Pages** (top navigation): Overview · Predict · What-if · Model comparison · Data explorer · India.
+- **Pages** (top navigation): Overview · Predict · What-if · Model comparison · Explain · Data explorer · India.
 - **Simple / Technical** switch at the top right, kept across pages. Simple uses plain words and everyday names ("Typical error" instead of RMSE); Technical shows the exact metrics, tables and SHAP waterfall.
 - **Light and dark mode** from the ⋮ menu (Light / Dark / System). The first visit opens in light mode, which is safer on projectors; the menu choice is remembered.
 - **Responsive** from 768 to 1920 px. KPI cards reflow 4 → 2 → 1 per row and their numbers never wrap; the navigation folds extra pages into a "more" menu on narrow screens.
@@ -290,9 +290,10 @@ A Streamlit app (`app.py` plus one script per page in `app_pages/`) makes the mo
 | Page | What it shows |
 |---|---|
 | **Overview** | The question, the three headline numbers read from the results tables (best CV RMSE, test RMSE, test R²) plus the 90 % range, a "how it works" pipeline strip (data → preprocess → 8 models → cross-validate → test once → explain), the data sources with links, and a glossary. |
-| **Predict** | Inputs grouped and colour-coded (soil · weather · farming · context), scenario presets, the prediction with its **90 % range** (gauge ring in Simple mode), "Why this prediction" (SHAP bars, or an interactive **SHAP waterfall** in Technical mode), and **Download CSV / PDF** report buttons. |
-| **What-if** | The prediction for the current field as one factor sweeps its range, with the 90 % band shaded; what drives yield overall (factor groups, feature ranking, response curves, and an interactive SHAP beeswarm of the 960 test fields in Technical mode). |
+| **Predict** | Inputs grouped and colour-coded (soil · weather · farming · context), scenario presets, the prediction with its **90 % range** (gauge ring in Simple mode), "Why this prediction" (SHAP bars, or an interactive **SHAP waterfall** in Technical mode), the 90 % range's coverage per crop and region (Technical mode), and **Download CSV / PDF** report buttons. |
+| **What-if** | The prediction for the current field as one factor sweeps its range (90 % band shaded); a **two-factor heatmap** (25 × 25 grid over any two inputs, current scenario and best cell marked, never beyond the observed data range); **Scenario A vs B** with both predictions and 90 % ranges, the gap in t/ha and %, a SHAP chart of which inputs explain the gap, Swap / Reset buttons and a CSV export; plus what drives yield overall (factor groups, feature ranking, response curves, SHAP beeswarm in Technical mode). |
 | **Model comparison** | Models ranked by CV RMSE with ± 1 sd error bars, predicted-vs-real and residual plots for the deployed or the best tree model, KPIs, and the full CV / train / test table. |
+| **Explain** ("Why the model decides") | Permutation importance with error bars for the deployed model or XGBoost; **do the methods agree?** (ranks under permutation, mean \|SHAP\| and \|coefficient\|, Spearman ρ between them, and a sentence generated from the numbers); the **soil pH paradox** card (correlation ≈ 0 but a hump-shaped effect); in Technical mode, standardised coefficients with 95 % bootstrap intervals, partial dependence with 50 ICE lines, and method notes. |
 | **Data explorer** | The key EDA from notebook 01 as interactive charts: yield and input distributions, a Pearson / Spearman correlation heatmap, yield by crop, region and season, and yield by harvest month (needs the raw Kaggle CSV; a setup card explains how to get it). |
 | **India** | The real-world check: lessons, look-up vs best model vs guessing, per-crop verdicts (Simple) and all five India tables (Technical). |
 
@@ -301,6 +302,10 @@ A Streamlit app (`app.py` plus one script per page in `app_pages/`) makes the mo
 ![Predict page, Technical mode, dark](docs/screenshots/p2_technical_dark_predict_1440.png)
 
 ![Model comparison, Technical mode, light](docs/screenshots/p2_technical_light_model_comparison_1440_full.png)
+
+![Explain page: methods agree, soil pH paradox, coefficients, PDP/ICE (Technical, light)](docs/screenshots/p3_technical_light_explain_1440_full.png)
+
+![What-if: two-factor heatmap and scenario A vs B (Technical, dark)](docs/screenshots/p3_technical_dark_whatif_1440_full.png)
 
 ### The 90 % prediction range
 
@@ -342,6 +347,7 @@ CropYieldPrediction/
 │   ├── evaluate.py            # Cross-validation and hold-out metrics
 │   ├── explain.py             # Permutation importance and SHAP helpers
 │   ├── india.py               # India cleaning, time-split CV, lookup baseline, ablation
+│   ├── explain_tables.py      # Permutation, mean |SHAP|, bootstrap coefficients, per-group coverage
 │   └── pipeline.py            # End-to-end Kaggle pipeline (python -m src.pipeline)
 ├── tests/                     # pytest: data integrity, leakage guards, models, SHAP, India, conformal interval, display names, theme contrast, report, every app page (AppTest)
 ├── results/
@@ -355,7 +361,8 @@ CropYieldPrediction/
 │   ├── labels.py              # Display names and units for every column, model and group
 │   ├── components.py          # Cards, KPI grid, setup cards, results tables
 │   ├── charts.py              # Altair charts coloured by theme series (follow light/dark live)
-│   ├── data.py                # Cached loaders, input state, presets, curves
+│   ├── data.py                # Cached loaders, input state, presets, curves, heatmap, ICE, scenario B
+│   ├── analysis.py            # Pure calculations: heatmap grid, ICE, SHAP gap, method ranks, pH optimum
 │   ├── report.py              # Prediction report as CSV and one-page PDF
 │   └── plain.py               # Plain-language sentences and tooltips, generated from the real numbers
 ├── static/fonts/              # Inter, Manrope, IBM Plex Mono (woff2, OFL-1.1) served by the app

@@ -1,4 +1,4 @@
-# PROGRESS — Phase 0 audit and showcase plan, Phase 1 and 2 results
+# PROGRESS — Phase 0 audit and showcase plan, Phase 1–3 results
 
 CSL236 AIML course project, Team 2: crop yield prediction (t/ha).
 Audit date: 2026-11-14. Commit audited: `511cdfe`.
@@ -7,6 +7,80 @@ Every number in this file was produced in this session by a fresh `git clone` of
 
 
 > **Screenshots:** since Phase 3 the per-phase captures in `screenshots/` (Phase 0 audit, `phase1/`, `phase2/`, `phase3/`) are git-ignored and local only; they were also removed from the unpushed history (with approval). A curated set is committed in `docs/screenshots/` (`p2_*`, `p3_*`). Paths below that start with `screenshots/` refer to the local folder.
+
+---
+
+## Phase 3 results (2026-11-15): explainability and what-if depth
+
+Measured in the Phase 3 session (scratch working copies, a fresh `git clone` with a fresh venv from `requirements-dev.txt`, my own headless Chrome). The real repo's `.venv` was not touched.
+
+**Repo hygiene (item 0, approved):** the 20 unpushed commits were rewritten to drop `screenshots/` (277 files). A git bundle of the old HEAD was kept in the scratch folder, and the rewrite was verified before cleanup:
+- 20 commits, identical messages, authors and dates;
+- each commit differs from its original only by `screenshots/` deletions;
+- `run.py`-equivalent checks passed (132 tests).
+
+Object store: **53.83 MiB loose (≈ 51 MB packed, the bundle size) → 13.22 MiB packed** after `git gc --prune=now`. `/screenshots/` is now git-ignored; a curated set lives in `docs/screenshots/`.
+
+| Check | Result |
+|---|---|
+| `pip install -r requirements-dev.txt` (fresh clone) | OK, 9 min 51 s |
+| `python run.py check`, fresh clone, no raw data | ruff clean; 128 passed, 17 skipped; `git status` clean |
+| pytest with both CSVs (working tree) | **145 passed** |
+| Kaggle pipeline rebuild (fresh clone, 27 min 52 s incl. the new explainability step) | max \|diff\| **0.0** on every existing metric; `best_overall.joblib` / `best_tree.joblib` byte-identical; `conformal.json` identical |
+| Explainability tables reproducible | identical across 3 runs (dev run, fresh-clone pipeline, standalone rerun), byte for byte |
+| Offline test (only localhost resolvable, OS dark, empty profile) | 243 requests over 7 pages × 2 modes, 0 external, fonts loaded, opens in light |
+| Geometry (stricter check: also buttons outside their column/card) | Explain + What-if: 6 widths × 2 themes × 2 modes, **0 problems**; other pages rechecked, 2 older clipped toggles found and fixed (Predict at 1024 px, Data explorer at 768 px), then 0 |
+
+**Importance, deployed polynomial model (test set):**
+- **Top 5 by permutation (Δ RMSE):** fertilizer 0.733, pesticide 0.122, rainfall 0.069, soil moisture 0.009, average temperature 0.008.
+- **Top 5 by mean |SHAP|:** fertilizer 0.742, pesticide 0.229, rainfall 0.196, soil pH 0.060, soil moisture 0.057.
+- **Top 5 by |coefficient| (multiple linear):** fertilizer 0.879, pesticide 0.265, rainfall 0.214, soil moisture 0.068, crop type 0.066.
+- **Spearman ρ between methods:** permutation–SHAP 0.895, permutation–coefficient 0.732, SHAP–coefficient 0.736 (XGBoost: 0.908 / 0.754 / 0.701).
+- **App sentence:** "All three methods rank **fertilizer** first … average Spearman ρ of **0.79** … They disagree most on **soil pH** (ranks 4–13)."
+
+**Soil pH paradox:** Pearson r = +0.019, Spearman ρ = +0.018 (3,840 training fields). The deployed model's average prediction runs 6.14 → 6.41 → 6.17 t/ha over pH 4.5 → 6.55 → 8.5: a genuine interior peak at pH 6.55. The region within 10 % of the peak is pH 5.9–7.2. The effect is modest: 0.27 t/ha across the whole range. Quadratic-term p = 4.4 × 10⁻⁴. Lasso keeps pH at +0.0100 t/ha per sd, but its 95 % bootstrap interval (−0.0032 to +0.0321) crosses zero.
+
+**Per-group coverage of the 90 % interval (test set):**
+- **By crop:** Barley 91.1 %, Corn 86.4 %, Rice 85.9 %, Soybean 89.2 %, Wheat 89.5 %.
+- **By region:** Central 87.6 %, East 91.3 %, North 92.0 %, South 86.0 %, West 85.9 %.
+- No group is under 85 %.
+
+**Timings (headless Chrome 1366×768; the machine was noticeably busier late in the session, so two runs are given):**
+
+| | Quieter run | Busier run |
+|---|---|---|
+| Explain page, cold start (first page of a cold server) | 3.4–4.7 s | 13.8 s |
+| Explain page, warm load | 0.65–0.85 s | 1.49–1.59 s |
+| PDP/ICE switch (first compute / cached) | 0.55 s | 1.40–1.64 s |
+| Heatmap switch | 0.52–0.54 s | 1.0–1.28 s |
+| A vs B (reopen What-if after changing A / Swap) | – | 1.46–1.51 s / 1.35–1.47 s |
+
+**Regression check vs Phase 2:** the same Phase 2 commit measured back-to-back with the same harness:
+- **Overview warm median:** Phase 2 0.785 / 0.762 s, Phase 3 0.794 / 0.742 s.
+- **Preset click:** Phase 2 0.411 / 0.543 s, Phase 3 0.426 / 0.411 s.
+- No regression. The absolute Phase 2 figures (0.56–0.63 s, 0.42–0.44 s) were not reproduced by *either* version on the day; a long nav label ("Why the model decides") had cost about 13 % on Overview loads, so the nav item is "Explain".
+
+**Issues found during Phase 3 testing, all fixed:**
+
+1. **The bare `screenshots/` ignore rule** also matched `docs/screenshots/`; it is now anchored as `/screenshots/`.
+2. **The history rewrite's final checkout** deleted the bulk screenshots from disk; they were restored from the scratch copy made beforehand.
+3. **shap logged every Kernel SHAP row at INFO** (thousands of lines in the pipeline log); its logger is set to WARNING during that step.
+4. **The rank chart's connecting lines** didn't line up with the offset dots; the lines were removed.
+5. **The coefficient chart's rows** were too tight; the chart is taller.
+6. **The pH curve's 1-decimal ticks** repeated "6.3"; flat curves now get 2 decimals.
+7. **The headline lower-cased "soil pH"** to "soil ph"; a `labels.lower()` helper now keeps "pH".
+8. **The Explain page's model toggle** was clipped at 768 px; it has its own row. The geometry check now also flags buttons outside their column or card, which found two older clipped toggles (Predict at 1024 px, Data explorer at 768 px); both fixed.
+9. **An expanded B next to a collapsed A** left a large gap; both start collapsed.
+10. **A long nav label** made Overview loads slower (measured); the label is "Explain".
+11. **A comparison test** looked up a row name used twice (an input and its SHAP gap); it now selects by section.
+12. **The setup card's "about 6 minutes"** became the measured 5–17 minutes.
+13. **My timing scripts** first reported 0.1 s for interactions that hadn't happened (react-aria comboboxes ignore synthetic clicks). They now type into the combobox, and every timing waits for proof of the change.
+
+**Deferred:**
+- India explainability tables.
+- A per-group (Mondrian) conformal width.
+- A slider-driven A vs B timing: the B slider ignores keyboard events in automation, so A vs B was timed via preset + Swap.
+- The A vs B inputs stay inside expanders to keep the page short.
 
 ---
 
@@ -452,9 +526,9 @@ The Pipeline fix itself is already done. This phase hardens the code around it.
 ### Phase 3: explainability + what-if (≈ 8–10 h)
 
 - [x] SHAP waterfall per prediction in friendly names; native Altair beeswarm (I13) (done early, in Phase 2)
-- [ ] Coefficient and permutation-importance views in the app (from notebook 03), plus the 4-method agreement table
-- [ ] 2-factor what-if heatmap (e.g. fertilizer × rainfall) and a side-by-side scenario A vs B comparison
-- [ ] "Soil pH paradox" explainer card: linear coefficient ≈ 0 vs SHAP rank 4, with the dependence curve
+- [x] Coefficient and permutation-importance views in the app, plus a method-agreement view (Phase 3: permutation, mean |SHAP|, |coefficient|, Spearman ρ)
+- [x] 2-factor what-if heatmap and a side-by-side scenario A vs B comparison (Phase 3)
+- [x] "Soil pH paradox" explainer card (Phase 3: r = +0.019, SHAP rank 4, interior peak at pH 6.55)
 - [x] PDF export of the prediction report (one page) (done early, in Phase 2, with matplotlib)
 
 ### Phase 4: model upgrades, compared fairly (≈ 8–12 h)

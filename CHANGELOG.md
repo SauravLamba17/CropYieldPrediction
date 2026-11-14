@@ -43,3 +43,16 @@ See `PROGRESS.md` (Phase 2 section) for the measured results.
 - **Data explorer** with the key EDA from notebook 01 (works from the committed training split; the harvest-month chart shows a setup card without the raw CSV).
 - **Prediction report** download as CSV and a one-page PDF (matplotlib, already installed).
 - **Performance**: the Streamlit file watcher is off (`fileWatcherType = "none"`); it cost about 5 s per new browser session. Cold start 20.2 s → 8.7 s; preset click 1.7–1.9 s → 0.4–0.5 s (same harness, same day).
+
+## Phase 3 — explainability and what-if depth
+
+See `PROGRESS.md` (Phase 3 section) for the measured results.
+
+- **Screenshots:** a curated set in `docs/screenshots/` (`p2_*`, `p3_*`); the per-phase bulk captures in `screenshots/` are git-ignored and were removed from the unpushed history (approved; verified commit by commit; repo pack 13.2 MiB).
+- **Pipeline explainability tables** (`src/explain_tables.py`, run inside `src/pipeline.py` or alone with `python -m src.explain_tables`): permutation importance on the 960 test fields (30 repeats, fixed seed) for the deployed model and XGBoost, per original feature; mean |SHAP| per original feature for both; standardised coefficients of multiple linear, Ridge and Lasso with 95 % intervals from 500 bootstrap refits; per-crop and per-region coverage of the 90 % interval. No model, split, CV scheme or existing metric changed.
+- **Explain page** ("Why the model decides"): importance with error bars, a "do the methods agree?" rank chart with Spearman ρ and a generated summary, coefficients with bootstrap intervals, PDP with 50 ICE lines, method notes.
+- **Soil pH paradox card** with live Pearson / Spearman, the model's response curve and its optimum region read from the curve; linked from the Data explorer.
+- **What-if:** a 25 × 25 two-factor heatmap restricted to the observed data range, and Scenario A vs B with a SHAP gap chart, Swap / Reset and a CSV export (`ui/report.comparison_frame`).
+- **Loading states:** spinners with short messages around the first SHAP explanation, the heatmap, PDP/ICE, A vs B and the SHAP beeswarm.
+- **Conformal transparency:** per-group coverage table on the Predict page (Technical mode).
+- The Explain page's navigation label is "Explain" (heading "Why the model decides"): the long label made the top navigation measurably slower to lay out.
