@@ -302,8 +302,8 @@ def main() -> None:
     params = {name: fitted[name].best_params_ for name in TREE_MODEL_NAMES}
     params = json.loads(json.dumps(params, default=float))
     (config.TABLES_DIR / "india_best_params.json").write_text(json.dumps(params, indent=2))
+    # Only the model notebook 04 loads; best_tree is recorded by name (it is usually the same).
     joblib.dump(deployable(fitted[best_overall]), config.MODELS_DIR / "india_best_overall.joblib")
-    joblib.dump(deployable(fitted[best_tree]), config.MODELS_DIR / "india_best_tree.joblib")
     (config.MODELS_DIR / "india_model_names.json").write_text(
         json.dumps({"best_overall": best_overall, "best_tree": best_tree}, indent=2)
     )

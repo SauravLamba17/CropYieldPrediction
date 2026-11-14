@@ -2,7 +2,7 @@
 
 **Goal:** make the dashboard understandable to a non-technical reader through plain language, interactive graphs and a Simple / Technical switch. Every number stays accurate, and the no-scroll layout is kept.
 
-**Scope:** UI only. The files changed are `app.py`, `ui/theme.py` and `ui/charts.py`; the new files are `ui/plain.py`, `tests/test_plain.py` and the `docs/screenshots/v1_*` and `v2_*` images, plus the README (§7, §8 tree, §10 test count) and this report. `src/`, `notebooks/`, `results/` and `models/` are byte-identical to their state before the work (SHA-256, 69 files). Nothing was committed.
+**Scope:** UI only. The files changed are `app.py`, `ui/theme.py` and `ui/charts.py`; the new files are `ui/plain.py`, `tests/test_plain.py` and the `docs/screenshots/archive/v1_*` and `v2_*` images, plus the README (§7, §8 tree, §10 test count) and this report. `src/`, `notebooks/`, `results/` and `models/` are byte-identical to their state before the work (SHA-256, 69 files). Nothing was committed.
 
 ## 1. Summary
 
@@ -47,7 +47,7 @@ The glossary on **How it works** repeats RMSE, R², SHAP, cross-validation and b
 
 - **Soil spans double width** with its 5 sliders split 3 + 2, so every input group is at most 3 rows tall. Columns are `[2, 1, 1.15, 0.85]`; the wider Farming column keeps "Irrigation frequency (times/week)" on one line at 1366 px.
 - **Model comparison:** the chart and table cards use `height="stretch"`, so they are the same height. The same applies to the leaderboard and scatter cards.
-- **1536×730** added as a test viewport. The v1 dashboard already overflowed there on Predict (4%, 31 px; `docs/screenshots/v1_predict_1536x730.png`).
+- **1536×730** added as a test viewport. The v1 dashboard already overflowed there on Predict (4%, 31 px; `docs/screenshots/archive/v1_predict_1536x730.png`).
 - **Spacing:** top padding went from 0.9rem to 0.6rem and the block gap from 0.75rem to 0.65rem. Table rows went from 6 px to 4 px padding.
 - **India table card:** the title that repeated the selected pill was removed; the caption now carries the ⓘ.
 
@@ -55,9 +55,9 @@ The glossary on **How it works** repeats RMSE, R², SHAP, cross-validation and b
 
 | | Before (v1) | After (v2, Simple) |
 |---|---|---|
-| Predict | ![](docs/screenshots/v1_predict_1536x730.png) | ![](docs/screenshots/v2_simple_predict_1536x730.png) |
-| Real-world validation | ![](docs/screenshots/v1_real_world_validation_1536x730.png) | ![](docs/screenshots/v2_simple_real_world_validation_1536x730.png) |
-| Model comparison | ![](docs/screenshots/after_model_comparison_1920x1080.png) | ![](docs/screenshots/v2_simple_model_comparison_1536x730.png) |
+| Predict | ![](docs/screenshots/archive/v1_predict_1536x730.png) | ![](docs/screenshots/v2_simple_predict_1536x730.png) |
+| Real-world validation | ![](docs/screenshots/archive/v1_real_world_validation_1536x730.png) | ![](docs/screenshots/v2_simple_real_world_validation_1536x730.png) |
+| Model comparison | ![](docs/screenshots/archive/after_model_comparison_1920x1080.png) | ![](docs/screenshots/v2_simple_model_comparison_1536x730.png) |
 
 Other v2 screenshots:
 - **Simple mode:** `v2_simple_predict_what_if_i_change_1536x730.png`, `v2_simple_what_drives_yield_1536x730.png`, `v2_simple_how_it_works_1536x730.png`, `v2_simple_predict_1920x1080.png`.

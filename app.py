@@ -109,6 +109,13 @@ INDIA_TABLES = {  # pill label -> (saved table, one-sentence caption, ⓘ text)
 # --- data -------------------------------------------------------------------------
 
 
+def setup_card(title: str, body: str) -> None:
+    """A friendly card (same style as the headline card) for a step the user still has to run."""
+    st.html(
+        f'<div class="headline"><p class="eyebrow">{title}</p><p class="h-text">{body}</p></div>'
+    )
+
+
 @st.cache_resource
 def load_artifacts() -> tuple[RegressorMixin, dict, dict, RawFeatureExplainer]:
     """Load the saved best model, slider metadata and a SHAP explainer once per server."""
@@ -120,8 +127,11 @@ def load_artifacts() -> tuple[RegressorMixin, dict, dict, RawFeatureExplainer]:
     ]
     missing = [str(p.relative_to(config.ROOT)) for p in required if not p.exists()]
     if missing:
-        st.error(
-            f"Missing files: {missing}. Run `python run.py` (or python -m src.pipeline) first."
+        setup_card(
+            "Setup needed: the trained models are missing",
+            "Run <code>python run.py</code> (or double-click <code>start.bat</code> on Windows) "
+            "once from the project folder. It trains the models in about 13 minutes and then "
+            "opens this dashboard. Missing: " + ", ".join(f"<code>{m}</code>" for m in missing),
         )
         st.stop()
     model = joblib.load(config.MODELS_DIR / "best_overall.joblib")
@@ -813,9 +823,14 @@ with tab_real:
     shap_shares = load_table("india_shap_shares")
     per_crop = load_table("india_per_crop_rmse")
     if india_test is None or lookups is None or shap_shares is None or per_crop is None:
-        st.info(
-            "The real-world validation has not been run yet — place the India CSV in "
-            "data/raw/india/ and run `python run.py`."
+        setup_card(
+            "Real-world validation: not built on this computer yet",
+            "This tab checks every model on real Indian state crop records (1997–2020). "
+            "To build it: 1. download <code>crop_yield.csv</code> from "
+            '<a href="https://data.mendeley.com/datasets/ncw2vbcgnk" target="_blank">Mendeley '
+            "Data</a>; 2. save it as <code>data/raw/india/crop_yield.csv</code>; 3. run "
+            "<code>python -m src.india</code> (about 26 minutes; <code>python run.py build</code> "
+            "rebuilds everything). The other four tabs work without it.",
         )
     else:
         india_names = json.loads((config.MODELS_DIR / "india_model_names.json").read_text())

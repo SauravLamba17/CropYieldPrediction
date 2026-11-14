@@ -209,7 +209,7 @@ def main() -> None:
 
     print("\nBest params:", json.dumps(save_best_params(fitted), indent=2))
     plot_results(test_results, fitted, test_df, best_overall, best_linear)
-    joblib.dump(deployable(fitted[best_linear]), config.MODELS_DIR / "best_linear.joblib")
+    # Only the models something loads: the app (best_overall) and notebook 03 (best_tree).
     joblib.dump(deployable(fitted[best_overall]), config.MODELS_DIR / "best_overall.joblib")
     joblib.dump(deployable(fitted[best_tree]), config.MODELS_DIR / "best_tree.joblib")
     (config.MODELS_DIR / "model_names.json").write_text(

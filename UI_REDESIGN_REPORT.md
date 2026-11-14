@@ -41,10 +41,10 @@ versions are also in `docs/screenshots/`.
 
 | Tab | Before | After |
 |---|---|---|
-| Predict | ![before](docs/screenshots/before_predict_1920x1080.png) | ![after](docs/screenshots/after_predict_1920x1080.png) |
-| Model comparison | ![before](docs/screenshots/before_model_comparison_1920x1080.png) | ![after](docs/screenshots/after_model_comparison_1920x1080.png) |
-| What drives yield | ![before](docs/screenshots/before_what_drives_yield_1920x1080.png) | ![after](docs/screenshots/after_what_drives_yield_1920x1080.png) |
-| Real-world validation (was "Real-data validation") | ![before](docs/screenshots/before_real_data_validation_1920x1080.png) | ![after](docs/screenshots/after_real_world_validation_1920x1080.png) |
+| Predict | ![before](docs/screenshots/archive/before_predict_1920x1080.png) | ![after](docs/screenshots/archive/after_predict_1920x1080.png) |
+| Model comparison | ![before](docs/screenshots/archive/before_model_comparison_1920x1080.png) | ![after](docs/screenshots/archive/after_model_comparison_1920x1080.png) |
+| What drives yield | ![before](docs/screenshots/archive/before_what_drives_yield_1920x1080.png) | ![after](docs/screenshots/archive/after_what_drives_yield_1920x1080.png) |
+| Real-world validation (was "Real-data validation") | ![before](docs/screenshots/archive/before_real_data_validation_1920x1080.png) | ![after](docs/screenshots/archive/after_real_world_validation_1920x1080.png) |
 
 The "before" screenshots render dark because the old app followed the system theme. The new
 `config.toml` locks the app to light mode.

@@ -3,6 +3,8 @@ data/raw/
 __pycache__/
 .ipynb_checkpoints/
 *.joblib
+!models/best_overall.joblib
+!models/best_tree.joblib
 kaggle.json
 access_token
 .pytest_cache/
