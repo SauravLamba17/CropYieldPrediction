@@ -10,6 +10,7 @@ PAGES = [
     "app_pages/predict.py",
     "app_pages/whatif.py",
     "app_pages/models.py",
+    "app_pages/explain.py",
     "app_pages/explorer.py",
     "app_pages/india.py",
 ]
@@ -46,3 +47,28 @@ def test_preset_changes_inputs(app):
     app.button_group(key="preset").set_value("Drought year").run()
     assert not app.exception
     assert app.session_state["in_total_rainfall"] < before
+
+
+def test_scenario_b_changes_the_gap(app):
+    app.segmented_control(key="mode").set_value("Technical").run()
+    app.switch_page("app_pages/whatif.py").run()
+    app.button(key="ab_reset").click().run()
+    app.slider(key="b_fertilizer_amount").set_value(app.session_state["in_fertilizer_amount"] + 50).run()
+    assert not app.exception
+    assert "Changed in B" in " ".join(str(h.proto.body) for h in app.get("html"))
+    app.button(key="ab_swap").click().run()
+    assert not app.exception
+
+
+def test_explain_page_without_tables_shows_a_setup_card(tmp_path, monkeypatch):
+    """If the explainability tables are missing, the page explains how to build them."""
+    from ui import data
+
+    at = AppTest.from_file(str(config.ROOT / "app.py"), default_timeout=TIMEOUT)
+    at.run()
+    monkeypatch.setattr(config, "TABLES_DIR", tmp_path)  # no tables there
+    data.load_table.clear()
+    at.switch_page("app_pages/explain.py").run()
+    data.load_table.clear()
+    assert not at.exception
+    assert "explain_tables" in " ".join(str(h.proto.body) for h in at.get("html"))
