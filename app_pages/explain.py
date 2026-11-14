@@ -1,17 +1,10 @@
 """Why the model decides: global importance, do the methods agree, coefficients, PDP/ICE, soil pH."""
 
 import streamlit as st
+
 from src import config
-from ui import analysis, charts, data, labels
-from ui.components import (
-    Kpi,
-    caption,
-    card_title,
-    headline_card,
-    kpi_row,
-    page_title,
-    setup_card,
-)
+from ui import analysis, charts, data, labels, plain
+from ui.components import Kpi, caption, card_title, headline_card, kpi_row, page_title, setup_card
 from ui.plain import TIPS
 
 METHODS = {"permutation": "Permutation", "shap": "Mean |SHAP|", "coefficient": "|Coefficient|"}
@@ -78,6 +71,33 @@ with st.container(key="card-agreement"):
                  "Spearman rank correlation", help_text=TIPS["spearman"]) for r in agree.itertuples()])
     caption(f"Permutation and mean |SHAP| are for the {labels.model(model, simple)} model; |coefficient| is the "
             "largest standardised coefficient of each input in the multiple linear model (a category's strongest level).")
+
+st.html('<a id="soil-ph-paradox"></a>')
+with st.container(key="card-ph"):
+    card_title("The soil pH paradox: why correlation misses it",
+               "Correlation looks for straight lines; the model can follow a curve", help_text=TIPS["ph"])
+    train = data.split()[0]
+    r, rho = analysis.correlations(train["soil_ph"], train[config.TARGET])
+    curve = data.response_curve("soil_ph")
+    opt = analysis.optimum_region(curve)
+    lasso_ph = coefs.query("model == 'lasso' and feature == 'soil_ph'")["coef"]
+    kept = (not lasso_ph.empty) and abs(float(lasso_ph.iloc[0])) > 0
+    left, right = st.columns(2, gap="medium")
+    with left:
+        st.altair_chart(charts.scatter_xy(train, "soil_ph", config.TARGET, labels.label("soil_ph"),
+                                          labels.label(config.TARGET), 260))
+        caption(f"Pearson r = <b>{r:+.3f}</b> · Spearman ρ = <b>{rho:+.3f}</b> (3,840 training fields)")
+    with right:
+        st.altair_chart(charts.curve_chart(curve, None, labels.label("soil_ph"), 260,
+                                           region=(opt["low"], opt["high"])))
+        caption(f"Model response: peak at pH <b>{opt['peak_x']:.1f}</b>; within 10% of the peak from "
+                f"pH <b>{opt['low']:.1f}</b> to <b>{opt['high']:.1f}</b> (shaded).")
+    st.html(f'<p class="plain-text">{plain.ph_sentence(r, rho, opt, kept)}</p>')
+    if not simple and signal is not None:
+        p_quad = float(signal.set_index("feature").loc["soil_ph", "p_quadratic"])
+        caption(f"Quadratic-term test on the training data (notebook 01): p = {p_quad:.1e}. "
+                f"Lasso coefficient for soil pH: {float(lasso_ph.iloc[0]):+.4f} t/ha per sd "
+                f"({'kept' if kept else 'set to zero'}).")
 
 if not simple:
     with st.container(key="card-coefficients"):

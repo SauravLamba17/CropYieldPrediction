@@ -43,13 +43,10 @@ with right, st.container(key="card-feature", height="stretch"):
                                      GROUP_SERIES[group_of[feature]], 260))
 
 with st.container(key="card-corr"):
-    head, pick = st.columns([3, 1], vertical_alignment="center")
-    with pick:
-        method = st.segmented_control("Correlation", ["Pearson", "Spearman"], required=True,
-                                      key="corr_method", label_visibility="collapsed")
-    with head:
-        card_title("How the numeric inputs move together",
-                   "Correlation between every pair (−1 to 1), including yield; hover a cell")
+    card_title("How the numeric inputs move together",
+               "Correlation between every pair (−1 to 1), including yield; hover a cell")
+    method = st.segmented_control("Correlation", ["Pearson", "Spearman"], required=True,
+                                  key="corr_method", label_visibility="collapsed")
     cols = config.NUMERIC_FEATURES + [config.TARGET]
     corr = train[cols].corr(method=method.lower())
     corr.index = corr.columns = [labels.name(c, simple) for c in cols]
@@ -58,6 +55,8 @@ with st.container(key="card-corr"):
     top = corr[target].drop(target).abs().idxmax()
     inputs = corr.drop(index=target, columns=target).abs()
     inputs = inputs.where(~np.eye(len(inputs), dtype=bool)).max().max()
+    st.page_link("app_pages/explain.py", label="Why a near-zero correlation can still matter: the soil pH paradox",
+                 icon=":material/psychology:")
     caption(f"Strongest link with yield: <b>{top}</b> (r = {corr.loc[top, target]:+.2f}). The largest "
             f"correlation between two inputs is only |r| = {inputs:.2f}, one sign that the data is synthetic.")
 

@@ -96,6 +96,39 @@ TIPS = {  # one-line explanations behind every ⓘ (both modes)
         "(finite-sample rank) of its absolute out-of-fold cross-validation errors on the "
         "3,840 training fields."
     ),
+    "permutation": (
+        "Permutation importance: shuffle one input across the test fields and see how much the "
+        "typical error grows. Bigger growth = the model relies on it more."
+    ),
+    "agreement": (
+        "Three different ways to rank the inputs. If they put the same inputs at the top, the "
+        "ranking is not an artefact of one method."
+    ),
+    "spearman": "Spearman ρ compares two rankings: 1 = identical order, 0 = unrelated.",
+    "ph": (
+        "Correlation measures how well a straight line fits. A hump-shaped effect (best in the "
+        "middle) can matter a lot and still have a correlation near zero."
+    ),
+    "bootstrap": (
+        "The model is refitted on 500 resamples of the training fields; the bar spans the middle "
+        "95% of the coefficients it gets. A bar crossing 0 means the sign is not certain."
+    ),
+    "ice": (
+        "Each thin line is one real field with only this input changed; the thick line is their "
+        "average. Lines that run parallel mean the effect is the same for every field."
+    ),
+    "heatmap": (
+        "Every cell is a prediction for the current field with these two inputs changed; all other "
+        "inputs stay as set. The grid only covers values seen in the training data."
+    ),
+    "coverage_groups": (
+        "Share of the 960 test fields in each group whose real yield fell inside the 90% range. "
+        "One width is used for every field, so some groups are covered more and some less."
+    ),
+    "abtest": (
+        "Each bar is how much one input's push changes between the two scenarios (SHAP of B minus "
+        "SHAP of A). The bars add up to the difference between the two predictions."
+    ),
     "relative": (
         "The crop's typical error divided by its average yield. Under 50% is labelled 'works well'."
     ),
@@ -350,4 +383,30 @@ def interval_method(q: float, n_cal: int, coverage: float, n_test: int) -> str:
         f"⌈(n+1)·0.9⌉-th smallest absolute out-of-fold 5-fold CV residual of the deployed model "
         f"(n = {n_cal:,} training fields). Empirical coverage on the {n_test} held-out test fields: "
         f"<b>{coverage:.1%}</b>."
+    )
+
+
+def ph_sentence(r: float, rho: float, optimum: dict, lasso_kept: bool) -> str:
+    """The soil pH paradox in one or two sentences, from the measured numbers.
+
+    Says plainly when the model's curve is NOT hump-shaped, instead of forcing the story.
+    """
+    corr = (
+        f"Soil pH barely correlates with yield (Pearson r = <b>{r:+.2f}</b>, Spearman ρ = "
+        f"<b>{rho:+.2f}</b>), so a correlation filter would have dropped it."
+    )
+    if not optimum["interior"]:
+        return corr + (
+            " But the model's response to pH is not hump-shaped either: it is highest at the edge "
+            f"of the range (pH {optimum['peak_x']:.1f}), so this data shows no hidden curved effect."
+        )
+    lasso = (
+        "Lasso kept it, but only with a tiny straight-line coefficient"
+        if lasso_kept
+        else "Lasso, which only fits straight lines, set it to zero"
+    )
+    return corr + (
+        f" Yet the model's prediction rises and then falls, best around pH <b>{optimum['low']:.1f}"
+        f"–{optimum['high']:.1f}</b> (peak at pH {optimum['peak_x']:.1f}): a hump has almost no "
+        f"straight-line trend, which is all that correlation measures. {lasso}."
     )
