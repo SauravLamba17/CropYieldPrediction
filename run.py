@@ -304,8 +304,8 @@ def cmd_check(args: argparse.Namespace) -> None:
     header(1, 2, "Lint (ruff)")
     run_command(
         "Lint",
-        [str(VENV_PYTHON), "-m", "ruff", "check", "src", "tests", "ui", "app.py", "run.py"],
-        rerun=f"{VENV_PYTHON_SHOWN} -m ruff check src tests ui app.py run.py",
+        [str(VENV_PYTHON), "-m", "ruff", "check", "src", "tests", "ui", "app_pages", "app.py", "run.py"],
+        rerun=f"{VENV_PYTHON_SHOWN} -m ruff check src tests ui app_pages app.py run.py",
     )
     header(2, 2, "Tests (pytest)")
     run_command(
