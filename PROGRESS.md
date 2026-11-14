@@ -1,9 +1,57 @@
-# PROGRESS — Phase 0 audit and showcase plan, Phase 1 results
+# PROGRESS — Phase 0 audit and showcase plan, Phase 1 and 2 results
 
 CSL236 AIML course project, Team 2: crop yield prediction (t/ha).
 Audit date: 2026-11-14. Commit audited: `511cdfe`.
 
 Every number in this file was produced in this session by a fresh `git clone` of the repo, with a fresh virtual environment built from `requirements-lock.txt` (Python 3.14.4, Windows 11, 16 logical CPUs). Nothing was copied from the old outputs. The original working folder was only read: no code, notebook, data or result file in it was changed.
+
+---
+
+## Phase 2 results (2026-11-14): UI redesign
+
+Measured in the Phase 2 session: a scratch copy of the working tree, a fresh `git clone` with a fresh venv from `requirements-dev.txt`, and my own headless Chrome (Python 3.14.4, Streamlit 1.64.0, Windows 11). The real repo's `.venv` was not touched.
+
+| Check | Result |
+|---|---|
+| `pip install -r requirements-dev.txt` (fresh clone) | OK, 9 min 48 s (a screenshot run was using the CPU at the same time; Phase 1 measured 5 min 59 s) |
+| `python run.py check`, fresh clone, no raw data | ruff clean; 115 passed, 17 skipped (need the git-ignored CSVs); `git status` clean |
+| pytest with the Kaggle CSV present (fresh clone) / with both CSVs (working tree) | 121 passed, 11 skipped / **132 passed** |
+| App from the fresh clone without a build | every page renders in both modes (Streamlit AppTest) and in Chrome |
+| Kaggle pipeline rebuild (fresh clone, `python -m src.pipeline`, 7 min 29 s) | max \|diff\| **0.0** on every test, CV, GroupKFold and linear-CV metric; same row order; `conformal.json` identical. Only `fit_time_s` differs |
+| Offline test (Chrome resolving only localhost; OS in dark mode; empty profile) | 233 requests over all 6 pages, **0 external**, 0 failed; Inter, Manrope and IBM Plex Mono loaded from the app; app opened in light mode |
+| Geometry check: 6 pages × 2 modes × 2 themes × 1920/1440/1366/1280/1024/768 | **0 problems**: no sibling overlaps, no horizontal scroll, no clipped or wrapped KPI numbers, no clipped controls/tables, title below the header, every page reachable from the navigation (visible link or the "… more" menu at 768 px) |
+
+**90 % prediction interval (split-conformal, out-of-fold 5-fold CV residuals of the deployed polynomial model):** half-width **± 1.0367 t/ha** (n = 3,840), empirical coverage on the 960 test fields **88.54 %** (850 / 960). Example: Typical field **6.52 t/ha (90 % range 5.48–7.56)**; Drought year 5.99 t/ha (4.95–7.03).
+
+**Performance, same harness (headless Chrome 1366×768, cold server, 3 runs):**
+
+| | Phase 1 app | Phase 2 app |
+|---|---|---|
+| Cold start (first page rendered) | 20.2 s (Predict) | 8.7 s (Overview); 9.5 s for the first Predict page |
+| Warm page load | 1.8–2.8 s | 0.56–0.63 s (Overview), 1.5–1.7 s (Predict) |
+| Preset click: number changes / fully settled | 1.73–1.85 s / 2.2–2.5 s | 0.42–0.44 s / 0.90–0.98 s (first click 1.29 / 1.97 s) |
+
+The Phase 1 report measured 16.2 s / 1.5 s / 1.8 s on a quieter machine; both columns above were measured on the same day for a fair comparison.
+
+**Contrast (WCAG):** every pair in `ui/theme.CONTRAST_PAIRS` passes in both modes (text ≥ 4.5:1, chart marks ≥ 3:1); `tests/test_theme.py` enforces it. Main pairs, light / dark: text on background 13.53 / 15.38; muted text on background 5.48 / 8.49; green on background 4.66 / 7.73; primary-button text on green 5.13 / 7.73; white on the hero green 5.13–7.87 / 5.13–13.36.
+
+**Issues found during Phase 2 testing, all fixed:**
+
+1. With both light and dark themes defined, Streamlit follows the OS theme, so the app opened dark on dark-mode laptops. A one-time script now sets Light on the first visit; the ⋮ menu still switches (and is remembered).
+2. Streamlit does not rerun the script when the viewer switches theme, so Python-side colours went stale. Fixed by making all colours browser-side: CSS `light-dark()` variables and charts coloured by theme series from `config.toml`.
+3. Value labels and lines with a fixed colour stayed black in dark mode; `alt.ColorDatum` cannot carry the theme scale, so fixed colours now use a constant series field added in `charts.style()`.
+4. Charts drew the page background as a box inside cards (a white box on the green gauge); backgrounds are now transparent.
+5. The new header (navigation) covered the app title; the top padding was increased (checked by the geometry test).
+6. The y-axis dropped every other factor name on short charts (tick de-collision); de-collision now applies to the numeric axis only.
+7. The model picker on Model comparison was clipped; it has its own row, and the geometry check now flags clipped controls and tables.
+8. The SHAP waterfall started at 0, so the pushes were slivers; the axis now zooms to the running total.
+9. Warm page loads took about 5–6 s: Streamlit's file watcher re-scanned every imported module on each new session. `fileWatcherType = "none"` (0.6 s Overview loads).
+10. Widgets with a `default` whose value is also kept in Session State logged a warning; defaults now live in `ui/data.init_state()`.
+11. My screenshot driver initially matched nav links by full text (which includes the icon's ligature name); fixed in the driver, not the app.
+
+**Deferred (not Phase 2 scope):** coefficient and permutation-importance views in the app, a 2-factor what-if heatmap and scenario A vs B (Phase 3); a custom loading state (Streamlit's spinner remains); deployment (Phase 5). India Pesticide-per-hectare has no unit in the source data, so its label carries none.
+
+Screenshots: `screenshots/phase2/<mode>_<theme>_<page>_<width>.png` (144), plus `_full` captures at 1440 px (24) and `layout_geometry.json`.
 
 ---
 
@@ -389,22 +437,22 @@ The Pipeline fix itself is already done. This phase hardens the code around it.
 
 ### Phase 2: Streamlit app redesign (≈ 12–16 h)
 
-- [ ] Move to `st.navigation` multipage with a top bar (the header collision itself, I1, was fixed in Phase 1 with CSS)
-- [ ] Apply the "Field & Harvest" palette and fonts; add light + dark themes (I12)
-- [ ] Responsive breakpoints at 1200 / 900 px; verify 1440 / 1024 / 768 in both themes with screenshots (light-theme header/inputs done in Phase 1; dark theme and full layout remain)
-- [ ] EDA page: distributions, correlation heatmap, yield by crop/region/season (Altair, interactive)
-- [ ] Prediction band (conformal interval from CV residuals) on the hero/gauge (I6)
+- [x] Move to `st.navigation` multipage with a top bar (Phase 2: 6 pages, top navigation)
+- [x] Apply the "Field & Harvest" palette and fonts; add light + dark themes (I12) (Phase 2; fonts bundled offline)
+- [x] Responsive breakpoints at 1200 / 900 px; verified at 1920 / 1440 / 1366 / 1280 / 1024 / 768 in both themes (Phase 2, 0 geometry problems)
+- [x] EDA page: distributions, correlation heatmap, yield by crop/region/season (Altair, interactive) (Phase 2: Data explorer)
+- [x] Prediction band (conformal interval from CV residuals) on the hero/gauge (I6) (Phase 2: ± 1.037 t/ha, 88.5 % test coverage)
 - [x] Leaderboard ranked by CV, with test RMSE shown as a reference column (I4) (done in Phase 1)
-- [ ] Branded loading and error states (I15); India units wording (I11) (missing-file cards and India units done in Phase 1; loading state remains)
-- [ ] Download a prediction report as CSV (inputs, prediction, interval, top SHAP contributions)
+- [x] Branded error / setup states (I15) and India units wording (I11) (Phase 1 + 2; a custom loading state was not added: Streamlit's own spinner remains)
+- [x] Download a prediction report as CSV (inputs, prediction, interval, top SHAP contributions) (Phase 2)
 
 ### Phase 3: explainability + what-if (≈ 8–10 h)
 
-- [ ] SHAP waterfall per prediction in friendly names; native Altair beeswarm (I13)
+- [x] SHAP waterfall per prediction in friendly names; native Altair beeswarm (I13) (done early, in Phase 2)
 - [ ] Coefficient and permutation-importance views in the app (from notebook 03), plus the 4-method agreement table
 - [ ] 2-factor what-if heatmap (e.g. fertilizer × rainfall) and a side-by-side scenario A vs B comparison
 - [ ] "Soil pH paradox" explainer card: linear coefficient ≈ 0 vs SHAP rank 4, with the dependence curve
-- [ ] PDF export of the prediction report (one page)
+- [x] PDF export of the prediction report (one page) (done early, in Phase 2, with matplotlib)
 
 ### Phase 4: model upgrades, compared fairly (≈ 8–12 h)
 

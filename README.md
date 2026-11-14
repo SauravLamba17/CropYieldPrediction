@@ -279,26 +279,32 @@ Because these columns are really a national per-year index (section 4B), the ful
 
 ## 7. The interactive demo app
 
-A Streamlit app (`app.py`) makes the model explorable without any code, including for readers with no technical background. It's a single-screen dashboard in a "Cyber Sand" palette (oat canvas, white cards, navy text, indigo and purple accents). There's no sidebar: five pill tabs sit in the header, next to a **Simple / Technical** switch. The header is responsive: from 1360 px wide the pills sit beside the title; below that they take their own row, and below 900 px they wrap, so every tab stays visible and clickable at 1920, 1440, 1366, 1024 and 768 px (screenshots in `screenshots/phase1/`).
+A Streamlit app (`app.py` plus one script per page in `app_pages/`) makes the model explorable without any code, including for readers with no technical background. The design is "Field & Harvest": parchment and crop-green in light mode, a deep field-green in dark mode, with Manrope headings, Inter text and IBM Plex Mono numbers. The fonts are bundled in `static/fonts/` (OFL), and the app makes **no request to any other server**, so it looks the same on an offline projector laptop.
 
-- **Simple** (the default) uses plain words, everyday names ("Typical error" instead of RMSE) and extra interactive graphs.
-- **Technical** shows the exact metrics and tables, with every number identical to the saved results.
+- **Pages** (top navigation): Overview · Predict · What-if · Model comparison · Data explorer · India.
+- **Simple / Technical** switch at the top right, kept across pages. Simple uses plain words and everyday names ("Typical error" instead of RMSE); Technical shows the exact metrics, tables and SHAP waterfall.
+- **Light and dark mode** from the ⋮ menu (Light / Dark / System). The first visit opens in light mode, which is safer on projectors; the menu choice is remembered.
+- **Responsive** from 768 to 1920 px. KPI cards reflow 4 → 2 → 1 per row and their numbers never wrap; the navigation folds extra pages into a "more" menu on narrow screens.
+- Every page opens with an **"In simple words"** card generated from the saved numbers (`ui/plain.py`), and every name and unit comes from one mapping (`ui/labels.py`), so no column name such as `soil_ph` ever appears.
 
-Both modes open every tab with an **"In simple words"** card: one or two sentences with the key numbers in indigo. Each sentence is generated from the saved model, tables and data, never hard-coded (`ui/plain.py`). Technical terms carry an ⓘ tooltip in both modes.
+| Page | What it shows |
+|---|---|
+| **Overview** | The question, the three headline numbers read from the results tables (best CV RMSE, test RMSE, test R²) plus the 90 % range, a "how it works" pipeline strip (data → preprocess → 8 models → cross-validate → test once → explain), the data sources with links, and a glossary. |
+| **Predict** | Inputs grouped and colour-coded (soil · weather · farming · context), scenario presets, the prediction with its **90 % range** (gauge ring in Simple mode), "Why this prediction" (SHAP bars, or an interactive **SHAP waterfall** in Technical mode), and **Download CSV / PDF** report buttons. |
+| **What-if** | The prediction for the current field as one factor sweeps its range, with the 90 % band shaded; what drives yield overall (factor groups, feature ranking, response curves, and an interactive SHAP beeswarm of the 960 test fields in Technical mode). |
+| **Model comparison** | Models ranked by CV RMSE with ± 1 sd error bars, predicted-vs-real and residual plots for the deployed or the best tree model, KPIs, and the full CV / train / test table. |
+| **Data explorer** | The key EDA from notebook 01 as interactive charts: yield and input distributions, a Pearson / Spearman correlation heatmap, yield by crop, region and season, and yield by harvest month (needs the raw Kaggle CSV; a setup card explains how to get it). |
+| **India** | The real-world check: lessons, look-up vs best model vs guessing, per-crop verdicts (Simple) and all five India tables (Technical). |
 
-| Tab | Simple mode | Technical mode |
-|---|---|---|
-| **Predict** | Inputs card (Soil across two sub-columns, then Weather, Farming, Context), **scenario presets** (Typical field · Ideal field · Drought year · Low-input farm) and **Reset to defaults**. Below it: a **yield gauge** with Low / Typical / Good / Excellent bands at the training-yield quartiles, and a card that toggles between **"Why this prediction"** (SHAP contributions plus one plain sentence) and **"What if I change…"** (the prediction as any one factor sweeps its range, all else held). | Same inputs card; hero card (prediction, difference from the benchmark average 6.27 t/ha, biggest boost and drag) beside the SHAP contribution chart. |
-| **Model comparison** | KPI cards (typical error, share explained, guessing the average, improvement), a 🥇🥈🥉 **leaderboard** with plain model names, and an interactive **predicted-vs-real scatter** of the 960 held-out fields. | KPI cards for the selected model (CV RMSE, test RMSE used once), a CV-RMSE bar chart and a table with CV, train and test metrics, all ranked by CV RMSE. |
-| **What drives yield** | A **donut** of factor groups and **"How yield responds to each factor"**: the average prediction over 300 training fields as the chosen factor sweeps its range, with the detected shape in words. | Importance by factor group and per-feature ranking, with the **Ranking / Detailed view** (SHAP beeswarm) toggle. |
-| **Real-world validation** | **"3 things we learned"** cards, typical error of the look-up vs the best model vs guessing the average, and per-crop relative error labelled "works well" / "struggles". | KPI cards and the five-table **pill selector** (Test results · Look-up baseline · Ablation · Time-ordered CV · Per-crop errors). |
-| **How it works** | The same in both modes: four steps (collect data → train 8 models → test on unseen fields → explain the predictions), each with one real number, a five-term glossary, and one line on the data. | |
+![Predict page, Simple mode, light](screenshots/phase2/simple_light_predict_1440.png)
 
-![Predict tab, Simple mode](docs/screenshots/v2_simple_predict_1536x730.png)
+![Predict page, Technical mode, dark](screenshots/phase2/technical_dark_predict_1440.png)
 
-![Model comparison tab, Simple mode](docs/screenshots/v2_simple_model_comparison_1536x730.png)
+![Model comparison, Technical mode, light](screenshots/phase2/technical_light_model_comparison_1440.png)
 
-![Real-world validation tab, Simple mode](docs/screenshots/v2_simple_real_world_validation_1536x730.png)
+### The 90 % prediction range
+
+Every prediction is shown with a range such as **6.52 t/ha (90 % range 5.48–7.56)**. It is a split-conformal interval: each of the 3,840 training fields is predicted by the deployed model trained on the other four CV folds, and the half-width is the ⌈(n + 1) · 0.9⌉-th smallest absolute error, **± 1.037 t/ha**. The pipeline computes it once (`results/tables/conformal.json`); the app only reads it. On the 960 test fields it covered **88.5 %** of the real yields, 1.5 points under the 90 % target and within normal sampling variation for 960 fields (about ± 1 point). The range has the same width for every field.
 
 **Things to try:**
 - Click the **scenario presets**: Ideal field predicts 9.15 t/ha, Drought year 5.99, Low-input farm 5.51, and Typical field returns to 6.52.
@@ -306,10 +312,10 @@ Both modes open every tab with an **"In simple words"** card: one or two sentenc
 - Open **"What if I change…"** and choose Soil pH. The curve peaks around pH 6.6.
 - Move **irrigation frequency** across its whole range. The prediction barely changes (6.54–6.58 t/ha).
 - In **Technical** mode, set **soil pH** to 4.5, then 6.7, then 8.5. Its SHAP bar goes from −0.19 to +0.08 and back to −0.16.
-- On **What drives yield**, choose Rainfall. The model's predicted yield rises, then levels off above about 805 mm.
+- On **What-if** (Simple mode), choose Rainfall under "How yield responds". The model's predicted yield rises, then levels off above about 805 mm.
 - Press **Reset to defaults** to return to 6.52 t/ha.
 
-The app loads saved models and never retrains. Measured in Phase 1 (fresh clone, headless Chrome at 1366×768): the first page load after a cold server start takes about 16 s (first-time imports and SHAP set-up); after that a page loads in about 1.5 s, and clicking a scenario preset re-renders in about 1.6–1.8 s. It uses Kernel SHAP instead of the permutation explainer, which avoids a roughly 20-second compile delay on first use. The design and verification records are in [`UI_REDESIGN_REPORT.md`](UI_REDESIGN_REPORT.md) (first redesign) and [`UI_V2_REPORT.md`](UI_V2_REPORT.md) (Simple / Technical modes).
+The app loads saved models and never retrains. Measured in Phase 2 (headless Chrome at 1366×768, cold server): the first page (Overview) appears in about 9 s, the first Predict page in about 9.5 s (SHAP set-up), later page loads take 0.6 s (Overview) to 1.7 s (Predict), and a scenario preset updates the prediction in about 0.4–0.5 s (fully settled in about 1 s). The Phase 1 app, measured the same way on the same day, took 20.2 s, 1.8–2.8 s and 1.7–1.9 s. It uses Kernel SHAP instead of the permutation explainer, which avoids a roughly 20-second compile delay on first use. The design and verification records are in [`UI_REDESIGN_REPORT.md`](UI_REDESIGN_REPORT.md) (first redesign) and [`UI_V2_REPORT.md`](UI_V2_REPORT.md) (Simple / Technical modes).
 
 ---
 
@@ -337,21 +343,28 @@ CropYieldPrediction/
 │   ├── explain.py             # Permutation importance and SHAP helpers
 │   ├── india.py               # India cleaning, time-split CV, lookup baseline, ablation
 │   └── pipeline.py            # End-to-end Kaggle pipeline (python -m src.pipeline)
-├── tests/                     # 47 pytest tests: data integrity, leakage guards, models, SHAP, India, unseen categories, leaderboard order, notebook setup, plain-language text
+├── tests/                     # pytest: data integrity, leakage guards, models, SHAP, India, conformal interval, display names, theme contrast, report, every app page (AppTest)
 ├── results/
 │   ├── figures/               # Every plot (eda_*, diag_*, explain_*, india_*, model comparison)
 │   └── tables/                # Every results table (CSV/JSON)
 ├── models/                    # Saved pipelines. best_overall.joblib (app) and best_tree.joblib (notebook 03) are committed; the India model is git-ignored. Regenerated by the pipelines
 ├── submissions/               # Local Kaggle submission file (never uploaded)
+├── app_pages/                 # One script per page: overview, predict, whatif, models, explorer, india
 ├── ui/
-│   ├── theme.py               # Palette constants and dashboard CSS (cards, pill tabs, KPI and hero cards, ⓘ tooltips)
-│   ├── charts.py              # Altair charts: bars, gauge, what-if / response curves, donut, scatter
+│   ├── theme.py               # Design tokens (light + dark), WCAG contrast checks, CSS
+│   ├── labels.py              # Display names and units for every column, model and group
+│   ├── components.py          # Cards, KPI grid, setup cards, results tables
+│   ├── charts.py              # Altair charts coloured by theme series (follow light/dark live)
+│   ├── data.py                # Cached loaders, input state, presets, curves
+│   ├── report.py              # Prediction report as CSV and one-page PDF
 │   └── plain.py               # Plain-language sentences and tooltips, generated from the real numbers
+├── static/fonts/              # Inter, Manrope, IBM Plex Mono (woff2, OFL-1.1) served by the app
 ├── .streamlit/
-│   └── config.toml            # Streamlit theme: palette, Inter font, forced light mode, minimal toolbar
+│   └── config.toml            # Light + dark themes from ui/theme.py, bundled fonts, no file watcher
 ├── docs/
-│   └── screenshots/           # App screenshots: Simple/Technical modes (v2_); archive/ holds the first redesign (before_/after_/v1_)
-├── app.py                     # Streamlit demo
+│   ├── VIVA_NOTES.md          # Likely examiner questions with short answers
+│   └── screenshots/           # Earlier app versions (v2_, archive/); current ones are in screenshots/phase2/
+├── app.py                     # Streamlit entry point: theme, header, mode switch, navigation
 ├── run.py                     # One-command entry point: set up what's missing, then launch (dev/build/check/app)
 ├── start.bat                  # Double-click launcher for Windows; runs python run.py
 ├── requirements.txt           # Runtime packages, pinned, cross-platform (Windows, Linux, macOS, Colab, Streamlit Cloud)
@@ -493,12 +506,12 @@ Or open them in Jupyter and run them top to bottom; they work with the working d
 python -m streamlit run app.py
 ```
 
-It opens at http://localhost:8501.
+It opens at http://localhost:8501. The app does not reload itself when code changes (the file watcher is off for speed); restart it after editing.
 
 ### Step 7 — Run the checks
 
 ```bat
-python -m ruff check src tests ui app.py run.py
+python -m ruff check src tests ui app_pages app.py run.py
 python -m pytest -q
 ```
 
@@ -507,7 +520,7 @@ python -m pytest -q
 ## 10. Verification and reproducibility
 
 - **Deterministic:** every random process uses `RANDOM_STATE = 42`. Two independent full pipeline runs produced **byte-identical** `test_results.csv`, `best_params.json` and `submission.csv` (verified by file hash).
-- **47 automated tests** (none of which write to tracked files) cover split integrity, the preprocessor being fitted only on training data, `Production` never reaching an India model, the test years staying strictly after the training years, per-hectare conversions, SHAP additivity, the ablation logic, unseen categories, the leaderboard's CV ordering, the notebooks' setup cell (from the repo root and from `notebooks/`), and the app's plain-language sentences (correct rounded numbers, curve shapes, no t/ha on India).
+- **132 automated tests** (none of which write to tracked files) cover split integrity, the preprocessor being fitted only on training data, `Production` never reaching an India model, the test years staying strictly after the training years, per-hectare conversions, SHAP additivity, the ablation logic, unseen categories, the leaderboard's CV ordering, the notebooks' setup cell (from the repo root and from `notebooks/`), and the app's plain-language sentences (correct rounded numbers, curve shapes, no t/ha on India), the conformal interval, display names for every column, theme contrast and config sync, the report, and every app page in both modes (Streamlit AppTest).
 - **Leakage guard:** every result was checked against a red-flag threshold of R² > 0.98 in the verification checklist. The code has no automatic stop. The best observed R² was 0.77.
 - **Notebooks** execute top to bottom with zero errors, and every claim in their text was checked against the printed output.
 - **Self-review:** a line-by-line review of the whole codebase found 0 critical, 1 high, 4 medium and 12 low issues. All critical and high findings were resolved. See `CODE_REVIEW.md`.
@@ -526,7 +539,9 @@ python -m pytest -q
 6. **India units are mixed.** Most crops are in tonnes per hectare, but cotton, jute, mesta and sannhemp are counted in bales per hectare, so the pooled India RMSE has no single unit. The app labels it "yield units (varies by crop)".
 7. **Unseen categories.** A crop, state or season never seen in training is one-hot encoded as all zeros (`handle_unknown="ignore"`), so the model falls back to its baseline for that column instead of failing. On India this affects 10 test rows ("Other Summer Pulses", which only appears in 2016–2020). The crop × state look-up falls back to the overall training mean.
 8. **Platform.** The pinned versions need Python 3.12+. Dependencies were verified to resolve for Linux (Python 3.12 and 3.14) and installed and run on Windows; the app has not yet been deployed to Streamlit Cloud (Phase 5).
-9. **Associations, not causes.** This is observational data, so the results show which variables predict yield, not what would happen if a farmer changed them.
+9. **India penalty tuning.** After making India's penalty tuning time-ordered (Phase 1), degree-2 polynomial no longer beats plain linear regression on the test years (9.72 vs 9.51).
+10. **The 90 % range is not adaptive.** It has the same width for every field and covered 88.5 % of the test fields (target 90 %).
+11. **Associations, not causes.** This is observational data, so the results show which variables predict yield, not what would happen if a farmer changed them.
 
 ---
 

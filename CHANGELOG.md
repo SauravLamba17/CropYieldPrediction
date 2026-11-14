@@ -28,3 +28,18 @@ See `PROGRESS.md` (Phase 1 section) for the measured results behind each item.
 - **India:** errors are labelled "yield units (varies by crop)" with a tooltip instead of t/ha; unseen test-year crops are handled (all-zero one-hot) and tested; the Ridge/Lasso penalty is now tuned on time-ordered year blocks.
 - **Responsive header:** the tab pills move to their own row below 1360 px and wrap below 900 px, so the title and tabs never overlap and all five tabs stay clickable; input groups go 2 × 2 below 1200 px.
 - **Friendly setup states:** missing models or a missing India build show an in-app card with the exact command instead of a red error.
+
+## Phase 2 — UI redesign ("Field & Harvest")
+
+See `PROGRESS.md` (Phase 2 section) for the measured results.
+
+- **Design tokens** (`ui/theme.py`): one source for the CSS, the chart palette and matplotlib (PDF report), light and dark. Every text/background pair passes WCAG AA (checked in tests). Two shades were adjusted to pass: the SHAP "negative" orange is `#C2711C` in light mode (the agreed `#D9822B` was 2.9:1 on white), and gold, soil and sky get darker text variants for text. In dark mode primary buttons use dark text (white on `#66BB6A` is only 2.4:1).
+- **Fonts bundled offline**: Inter, Manrope and IBM Plex Mono (woff2, OFL-1.1, with licences) in `static/fonts/`, loaded through `[[theme.fontFaces]]`. No CDN; verified with all non-local hosts blocked.
+- **Light / dark mode** via `[theme.light]` and `[theme.dark]` and the ⋮ menu. CSS uses `light-dark()` and charts colour by theme series, so a live switch restyles everything without a rerun. First visit defaults to light.
+- **Page navigation** (`st.navigation`, `app_pages/`): Overview (new landing page with headline numbers read from the tables and a pipeline strip), Predict, What-if, Model comparison, Data explorer, India. The Simple / Technical switch is global.
+- **Layout system**: spacing scale, card components, KPI grid that reflows 4 → 2 → 1 with numbers that never wrap; one display-name mapping (`ui/labels.py`) for every column, model and group.
+- **Charts**: one themed Altair style; CV RMSE bars with ± 1 sd error bars; predicted-vs-actual and residual plots for the deployed or best tree model; an interactive SHAP waterfall per prediction and a SHAP beeswarm, replacing the static PNG.
+- **90 % prediction interval** (split-conformal on out-of-fold CV residuals, computed once in `src/pipeline.py`, saved to `results/tables/conformal.json`): ± 1.037 t/ha, 88.5 % coverage on the 960 test fields. No existing metric changed.
+- **Data explorer** with the key EDA from notebook 01 (works from the committed training split; the harvest-month chart shows a setup card without the raw CSV).
+- **Prediction report** download as CSV and a one-page PDF (matplotlib, already installed).
+- **Performance**: the Streamlit file watcher is off (`fileWatcherType = "none"`); it cost about 5 s per new browser session. Cold start 20.2 s → 8.7 s; preset click 1.7–1.9 s → 0.4–0.5 s (same harness, same day).
