@@ -180,7 +180,7 @@ def step_kaggle_data(n: int, total: int) -> None:
 def step_pipeline(n: int, total: int, force: bool = False) -> None:
     """Train and evaluate all Kaggle models if the app's model files are missing."""
     header(
-        n, total, "Training models", "about 5-15 min" if force else "first run only, about 5-15 min"
+        n, total, "Training models", "about 13 min" if force else "first run only, about 13 min"
     )
     absent = missing(PIPELINE_OUTPUTS)
     if not force and not absent:
@@ -199,7 +199,7 @@ def step_india(n: int, total: int, force: bool = False) -> None:
         n,
         total,
         "India real-data validation",
-        "about 15-25 min" if force else "first run only, about 15-25 min",
+        "about 23 min" if force else "first run only, about 23 min",
     )
     if not config.INDIA_CSV.exists():
         print(
@@ -220,7 +220,7 @@ def step_india(n: int, total: int, force: bool = False) -> None:
 
 def step_notebooks(n: int, total: int) -> None:
     """Execute all four notebooks top to bottom, in place."""
-    header(n, total, "Executing the 4 notebooks", "about 2 min")
+    header(n, total, "Executing the 4 notebooks", "about 4 min")
     paths = [f"notebooks/{name}.ipynb" for name in NOTEBOOKS]
     command = [
         "-m",

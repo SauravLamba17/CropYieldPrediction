@@ -1,9 +1,59 @@
-# PROGRESS — Phase 0 audit and showcase plan
+# PROGRESS — Phase 0 audit and showcase plan, Phase 1 results
 
 CSL236 AIML course project, Team 2: crop yield prediction (t/ha).
 Audit date: 2026-11-14. Commit audited: `511cdfe`.
 
 Every number in this file was produced in this session by a fresh `git clone` of the repo, with a fresh virtual environment built from `requirements-lock.txt` (Python 3.14.4, Windows 11, 16 logical CPUs). Nothing was copied from the old outputs. The original working folder was only read: no code, notebook, data or result file in it was changed.
+
+---
+
+## Phase 1 results (2026-11-14): portability, correctness, demo-safe header
+
+Every number below comes from runs in the Phase 1 session: a scratch copy of the working tree, then a fresh `git clone` of the committed result with a fresh venv built from `requirements-dev.txt` (Python 3.14.4, Windows 11, 16 logical CPUs, mapped to a short `subst` drive to stay under the 260-character path limit). The real repo's `.venv` was not touched.
+
+| Check | Result |
+|---|---|
+| `pip install -r requirements-dev.txt` (fresh venv) | OK, 5 min 59 s |
+| Linux resolution of `requirements.txt` / `requirements-dev.txt` (`uv pip compile --python-platform x86_64-manylinux_2_28`, Python 3.12 and 3.14) | 0 errors; 62 / 152 packages, no Windows-only package. Python 3.11 fails (`contourpy==1.4.0` needs 3.12+). Plain `pip --dry-run --platform` cannot evaluate `win32` markers for another OS, so it reports `pywinpty` unless those lines are removed (then 0 errors) |
+| `python run.py check`, fresh clone, no raw data | ruff clean; 30 passed, 17 skipped (need the git-ignored CSVs); `git status` clean |
+| `python run.py check`, fresh clone, raw data copied in | ruff clean; **47 passed**; `git status` clean |
+| App from the fresh clone **without a build** | Starts; Kaggle tabs and India tab work (models and tables are committed). First load after a cold start 16.2 s, later loads 1.4–1.5 s, a preset click settles in 1.6–1.8 s (6.52 → 5.99 t/ha) |
+| `python run.py build` (fresh clone) | exit 0, **39 min 15 s**: pipeline 12 min 37 s, India 22 min 40 s, notebooks 3 min 57 s |
+| Metrics after that build vs the committed tables | max \|diff\| 0.0 for every Kaggle and India test/CV/ablation metric, same row order. Only `fit_time_s` and notebook execution timestamps differ |
+| Notebooks, kernel cwd = repo root | 0 errors; 62 / 21 / 28 / 159 s (270 s) |
+| Notebooks, kernel cwd = `notebooks/` | 0 errors; 53 / 18 / 21 / 143 s (234 s) |
+| SHAP beeswarm, two consecutive executions of notebook 03 | byte-identical PNG (sha256 `ae9d8393…`) |
+| Leakage demo (Ridge, 5-fold CV RMSE): scaler fitted before CV vs inside the Pipeline | 0.640771 vs 0.640771, difference 5.5 × 10⁻⁸ |
+| Header geometry, 5 tabs × 2 modes × 1920/1440/1366/1024/768 (+1280) | 0 problems: no tab overlaps the title or toggle, all tabs inside the viewport and clickable at their centre, no horizontal page overflow |
+
+**India, old vs new (time-ordered penalty tuning, item 11).** Only the four penalised linear models change:
+
+| Model | CV RMSE old → new | Test RMSE old → new | Test R² old → new | median CV-fold α old → new |
+|---|---|---|---|---|
+| ridge | 8.106 → 9.123 | 9.5169 → 9.5169 | 0.519 → 0.519 | 0.373 → 0.869 |
+| lasso | 8.133 → 8.455 | 9.5497 → 9.5173 | 0.516 → 0.519 | 0.00018 → 0.00027 |
+| polynomial | 7.916 → 8.977 | 9.4807 → 9.7175 | 0.523 → 0.499 | 0.373 → 4.71 |
+| polynomial_deg3 | 9.860 → 10.807 | 9.8373 → 10.0209 | 0.486 → 0.467 | 0.494 → 59.6 |
+| random_forest (selected), XGBoost, OLS, simple_lr, dummy | unchanged | unchanged (RF 8.1195) | unchanged | – |
+
+CV RMSE rises because later years no longer inform α; the degree-2 polynomial no longer beats plain OLS on the test years. No headline conclusion changes. The α of each final fit is in `results/tables/india_best_params.json`.
+
+**Unseen categories:** 1 India test crop never appears in training ("Other Summer Pulses", 10 of 4,226 test rows); no unseen state or season. All are encoded as all-zero one-hot columns; covered by tests.
+
+**Issues found during Phase 1 testing, all fixed:**
+
+1. India penalty search scored in original units: `expm1` overflowed for weakly penalised candidates on later years, giving NaN scores that silently dropped those α values. Fixed by tuning inside the log1p wrapper (as RidgeCV/LassoCV did), so only the folds changed; 0 NaN scores afterwards.
+2. A cold-started Lasso grid took 730 s single-threaded; the search now uses all cores (India step 22 min 40 s, vs 26 min 01 s in Phase 0).
+3. On a fresh clone `run.py check` failed 6 split tests (the Kaggle CSV is git-ignored); they now skip like the India tests.
+4. Seeding NumPy's global RNG made shap print a FutureWarning containing a temp path, so notebook 03's output changed every run; `summary_plot` now gets a seeded `rng`.
+5. A 1200 px breakpoint was not enough: the inline pill row needs about 1344 px, so it still overlapped the title at 1280 px. The pills take their own row below 1360 px.
+6. `ruff` flagged `exec` in the first notebook test (S102); the setup cell now runs in a fresh interpreter via `subprocess`.
+7. `start.bat`: an unescaped `)` inside an `if (...)` block would have ended the block early; escaped.
+8. The Technical results table crashed (`KeyError: train_rmse`) on tables from older builds; it now shows only the columns present.
+
+**Deferred (not Phase 1 scope):** visual redesign, dark mode, `st.navigation` pages (Phase 2); EDA page, prediction band, CSV report (Phase 2); Technical KPI value wrapping and crowded axis ticks at 768–1024 px (Phase 2 layout); Streamlit Cloud deployment and a smaller Linux XGBoost install (`nvidia-nccl-cu13` is pulled in on Linux; Phase 5); the "mid-term vs now" leakage cell in notebook 02 (the measured result is in `CHANGELOG.md`); a joblib `delayed` UserWarning printed by the parallel India penalty search (harmless).
+
+Screenshots: `screenshots/phase1/<mode>_<tab>_<width>.png` (`_full` = whole page), plus `state_india_not_built_1366.png`, `state_missing_models_1366.png` and `header_geometry.json` (the measured header boxes).
 
 ---
 
@@ -327,25 +377,25 @@ Estimates are in focused hours for one person.
 
 The Pipeline fix itself is already done. This phase hardens the code around it.
 
-- [ ] Split dependencies: cross-platform pinned `requirements.txt` (runtime) + `requirements-dev.txt` (jupyter, ruff, pytest); drop `pywinpty` from the runtime set (I2)
-- [ ] Commit `models/best_overall.joblib` (8 KB) and `best_tree.joblib` via a `.gitignore` exception; delete the duplicate models (I3, I16)
-- [ ] Repo-root bootstrap in every notebook + a Colab setup cell (I7)
-- [ ] Tests write the split to `tmp_path` instead of `data/processed/` (I10)
-- [ ] Seed the SHAP beeswarm (I14); report the unseen-category count (I17)
-- [ ] Optional: time-ordered inner CV for India Ridge/Lasso (I9)
-- [ ] Record the leakage experiment (§4.3) in notebook 02 as a "mid-term vs now" cell
-- [ ] Re-run `python run.py build` + `check`; confirm `test_results.csv` is unchanged
-- [ ] Refresh the README timings (I8)
+- [x] Split dependencies: cross-platform pinned `requirements.txt` (runtime) + `requirements-dev.txt` (jupyter, ruff, pytest); drop `pywinpty` from the runtime set (I2)
+- [x] Commit `models/best_overall.joblib` (8 KB) and `best_tree.joblib` via a `.gitignore` exception; delete the duplicate models (I3, I16)
+- [x] Repo-root bootstrap in every notebook + a Colab setup cell (I7)
+- [x] Tests write the split to `tmp_path` instead of `data/processed/` (I10)
+- [x] Seed the SHAP beeswarm (I14); report the unseen-category count (I17)
+- [x] Time-ordered inner CV for India Ridge/Lasso (I9): old vs new in the Phase 1 section
+- [ ] Record the leakage experiment (§4.3) in notebook 02 as a "mid-term vs now" cell (deferred; re-measured in Phase 1 and recorded in `CHANGELOG.md`)
+- [x] Re-run `python run.py build` + `check`; confirm `test_results.csv` is unchanged (max \|diff\| 0.0)
+- [x] Refresh the README timings (I8)
 
 ### Phase 2: Streamlit app redesign (≈ 12–16 h)
 
-- [ ] Move to `st.navigation` multipage with a top bar; fix the header collision (I1)
+- [ ] Move to `st.navigation` multipage with a top bar (the header collision itself, I1, was fixed in Phase 1 with CSS)
 - [ ] Apply the "Field & Harvest" palette and fonts; add light + dark themes (I12)
-- [ ] Responsive breakpoints at 1200 / 900 px; verify 1440 / 1024 / 768 in both themes with screenshots
+- [ ] Responsive breakpoints at 1200 / 900 px; verify 1440 / 1024 / 768 in both themes with screenshots (light-theme header/inputs done in Phase 1; dark theme and full layout remain)
 - [ ] EDA page: distributions, correlation heatmap, yield by crop/region/season (Altair, interactive)
 - [ ] Prediction band (conformal interval from CV residuals) on the hero/gauge (I6)
-- [ ] Leaderboard ranked by CV, with test RMSE shown as a reference column (I4)
-- [ ] Branded loading and error states (I15); India units wording (I11)
+- [x] Leaderboard ranked by CV, with test RMSE shown as a reference column (I4) (done in Phase 1)
+- [ ] Branded loading and error states (I15); India units wording (I11) (missing-file cards and India units done in Phase 1; loading state remains)
 - [ ] Download a prediction report as CSV (inputs, prediction, interval, top SHAP contributions)
 
 ### Phase 3: explainability + what-if (≈ 8–10 h)

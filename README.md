@@ -147,6 +147,8 @@ Everything is inside scikit-learn `Pipeline` and `ColumnTransformer` objects, so
 | `random_forest` | Tuned with nested `RandomizedSearchCV` (20 iterations) |
 | `gradient_boost` | XGBoost, tuned the same way |
 
+On India, every penalty (polynomial, Ridge, Lasso) is instead tuned by a grid search on **time-ordered year blocks**, the same scheme as the evaluation, so no later year informs the choice of α.
+
 **Nested cross-validation** is used for the tree models. Their hyperparameter search runs *inside* each outer fold, just as RidgeCV and LassoCV choose α inside each fold. This keeps the comparison fair and avoids optimistic scores.
 
 ### 5.4 Evaluation
@@ -178,16 +180,20 @@ Everything is inside scikit-learn `Pipeline` and `ColumnTransformer` objects, so
 
 ### 6.1 Model comparison (Kaggle benchmark)
 
-| Model | CV RMSE (t/ha) | Test RMSE (t/ha) | Test R² |
-|---|---|---|---|
-| **polynomial** | **0.635 ± 0.009** | **0.646** | **0.690** |
-| gradient_boost (XGBoost) | 0.636 ± 0.007 | 0.646 | 0.690 |
-| lasso | 0.641 | 0.653 | 0.684 |
-| ridge | 0.641 | 0.653 | 0.683 |
-| multiple_lr | 0.641 | 0.653 | 0.683 |
-| random_forest | 0.646 | 0.663 | 0.673 |
-| simple_lr (fertilizer only) | 0.735 | 0.773 | 0.557 |
-| dummy_mean | 1.151 | 1.160 | 0.000 |
+Ranked by CV RMSE, the criterion the deployed model was chosen by. **Selected by cross-validation; test set used once for final evaluation.**
+
+| Model | CV RMSE (t/ha) | Train RMSE | Test RMSE (t/ha) | Test R² |
+|---|---|---|---|---|
+| **polynomial** (deployed) | **0.635 ± 0.009** | 0.618 | **0.646** | **0.690** |
+| gradient_boost (XGBoost) | 0.636 ± 0.007 | 0.573 | 0.646 | 0.690 |
+| lasso | 0.641 ± 0.005 | 0.637 | 0.653 | 0.684 |
+| ridge | 0.641 ± 0.006 | 0.637 | 0.653 | 0.683 |
+| multiple_lr | 0.641 ± 0.006 | 0.637 | 0.653 | 0.683 |
+| random_forest | 0.646 ± 0.008 | 0.487 | 0.663 | 0.673 |
+| simple_lr (fertilizer only) | 0.735 ± 0.006 | 0.735 | 0.773 | 0.557 |
+| dummy_mean | 1.151 ± 0.015 | 1.151 | 1.160 | 0.000 |
+
+XGBoost's test RMSE is 0.00006 t/ha lower than the polynomial's, a practical tie. It was not picked because the choice is made on CV before the test set is opened. The train/test gap is small for every model except Random Forest (0.49 vs 0.66), which fits the training fields closely.
 
 ![Model comparison](results/figures/model_comparison.png)
 
@@ -235,13 +241,13 @@ Everything is inside scikit-learn `Pipeline` and `ColumnTransformer` objects, so
 | **Crop×state lookup (no ML)** | **7.81** | **0.68** |
 | random_forest | 8.12 | 0.65 |
 | gradient_boost (XGBoost) | 8.14 | 0.65 |
-| polynomial (degree 2) | 9.48 | 0.52 |
-| linear models | ≈ 9.5 | ≈ 0.52 |
-| polynomial (degree 3) | 9.84 | 0.49 |
+| linear models (OLS, Ridge, Lasso) | 9.51–9.52 | 0.52 |
+| polynomial (degree 2) | 9.72 | 0.50 |
+| polynomial (degree 3) | 10.02 | 0.47 |
 | simple_lr | 14.01 | −0.04 |
 | dummy_mean | 14.04 | −0.05 |
 
-*RMSE is in the dataset's own yield units. The spread is large because yields range across 55 very different crops. Full values for every model are in `results/tables/india_test.csv`.*
+*Linear-model penalties are tuned on time-ordered folds (Phase 1). Before that fix, with folds that let later years inform α, the polynomial scored 9.48 and degree 3 9.84; Ridge is unchanged and Lasso improved from 9.55 to 9.52. RMSE is in the dataset's own yield units (mostly t/ha, but bales per hectare for cotton, jute, mesta and sannhemp). The spread is large because yields range across 55 very different crops. Full values for every model are in `results/tables/india_test.csv`.*
 
 **What the real data says:**
 - **Crop type dominates:** SHAP shares are Crop 83 %, State 5.5 %, log(Area) 4.9 %, Rainfall 4 %, Fertilizer 0.9 %, Pesticide 0.5 %.
@@ -255,9 +261,10 @@ Because these columns are really a national per-year index (section 4B), the ful
 
 | Models | Change in test RMSE without the columns | Verdict |
 |---|---|---|
-| Linear (polynomial, OLS, Ridge, Lasso) | +0.27 to +0.31 (about 3 % worse) | Help modestly, acting as an extrapolated time trend |
+| Linear (OLS, Ridge, Lasso) | +0.27 (about 3 % worse) | Help modestly, acting as an extrapolated time trend |
+| Polynomial degree 2 | +0.07 | Help a little (its time-ordered penalty is stronger) |
 | Random Forest, XGBoost | +0.016 / +0.019 (about 0.2 %) | Essentially no effect |
-| Polynomial degree 3 | −0.047 | Hurt (overfitting) |
+| Polynomial degree 3 | −0.24 | Hurt (overfitting) |
 
 **Why trees ignore them:** 100 % of test rows have pesticide values above the training maximum, and 26 % have fertilizer values above it. Tree models cannot extrapolate beyond the range they were trained on. **Every headline India conclusion holds with or without these columns.**
 
@@ -272,7 +279,7 @@ Because these columns are really a national per-year index (section 4B), the ful
 
 ## 7. The interactive demo app
 
-A Streamlit app (`app.py`) makes the model explorable without any code, including for readers with no technical background. It's a single-screen dashboard in a "Cyber Sand" palette (oat canvas, white cards, navy text, indigo and purple accents). Every tab fits without scrolling at 1920×1080, 1366×768 and 1536×730 (a 1080p laptop at 125 % Windows scaling). There's no sidebar: five pill tabs sit in the header, next to a **Simple / Technical** switch.
+A Streamlit app (`app.py`) makes the model explorable without any code, including for readers with no technical background. It's a single-screen dashboard in a "Cyber Sand" palette (oat canvas, white cards, navy text, indigo and purple accents). There's no sidebar: five pill tabs sit in the header, next to a **Simple / Technical** switch. The header is responsive: from 1360 px wide the pills sit beside the title; below that they take their own row, and below 900 px they wrap, so every tab stays visible and clickable at 1920, 1440, 1366, 1024 and 768 px (screenshots in `screenshots/phase1/`).
 
 - **Simple** (the default) uses plain words, everyday names ("Typical error" instead of RMSE) and extra interactive graphs.
 - **Technical** shows the exact metrics and tables, with every number identical to the saved results.
@@ -282,7 +289,7 @@ Both modes open every tab with an **"In simple words"** card: one or two sentenc
 | Tab | Simple mode | Technical mode |
 |---|---|---|
 | **Predict** | Inputs card (Soil across two sub-columns, then Weather, Farming, Context), **scenario presets** (Typical field · Ideal field · Drought year · Low-input farm) and **Reset to defaults**. Below it: a **yield gauge** with Low / Typical / Good / Excellent bands at the training-yield quartiles, and a card that toggles between **"Why this prediction"** (SHAP contributions plus one plain sentence) and **"What if I change…"** (the prediction as any one factor sweeps its range, all else held). | Same inputs card; hero card (prediction, difference from the benchmark average 6.27 t/ha, biggest boost and drag) beside the SHAP contribution chart. |
-| **Model comparison** | KPI cards (typical error, share explained, guessing the average, improvement), a 🥇🥈🥉 **leaderboard** with plain model names, and an interactive **predicted-vs-real scatter** of the 960 held-out fields. | KPI cards, test-RMSE bar chart and full test-results table (equal-height cards). |
+| **Model comparison** | KPI cards (typical error, share explained, guessing the average, improvement), a 🥇🥈🥉 **leaderboard** with plain model names, and an interactive **predicted-vs-real scatter** of the 960 held-out fields. | KPI cards for the selected model (CV RMSE, test RMSE used once), a CV-RMSE bar chart and a table with CV, train and test metrics, all ranked by CV RMSE. |
 | **What drives yield** | A **donut** of factor groups and **"How yield responds to each factor"**: the average prediction over 300 training fields as the chosen factor sweeps its range, with the detected shape in words. | Importance by factor group and per-feature ranking, with the **Ranking / Detailed view** (SHAP beeswarm) toggle. |
 | **Real-world validation** | **"3 things we learned"** cards, typical error of the look-up vs the best model vs guessing the average, and per-crop relative error labelled "works well" / "struggles". | KPI cards and the five-table **pill selector** (Test results · Look-up baseline · Ablation · Time-ordered CV · Per-crop errors). |
 | **How it works** | The same in both modes: four steps (collect data → train 8 models → test on unseen fields → explain the predictions), each with one real number, a five-term glossary, and one line on the data. | |
@@ -302,7 +309,7 @@ Both modes open every tab with an **"In simple words"** card: one or two sentenc
 - On **What drives yield**, choose Rainfall. The model's predicted yield rises, then levels off above about 805 mm.
 - Press **Reset to defaults** to return to 6.52 t/ha.
 
-The app loads saved models and never retrains. The server starts in about 1.2 seconds, and the first full render takes about 4.5–5.4 seconds. Every later interaction, including the what-if and response curves, re-renders in under 1 second. It uses Kernel SHAP instead of the permutation explainer, which avoids a roughly 20-second compile delay on first use. The design and verification records are in [`UI_REDESIGN_REPORT.md`](UI_REDESIGN_REPORT.md) (first redesign) and [`UI_V2_REPORT.md`](UI_V2_REPORT.md) (Simple / Technical modes).
+The app loads saved models and never retrains. Measured in Phase 1 (fresh clone, headless Chrome at 1366×768): the first page load after a cold server start takes about 16 s (first-time imports and SHAP set-up); after that a page loads in about 1.5 s, and clicking a scenario preset re-renders in about 1.6–1.8 s. It uses Kernel SHAP instead of the permutation explainer, which avoids a roughly 20-second compile delay on first use. The design and verification records are in [`UI_REDESIGN_REPORT.md`](UI_REDESIGN_REPORT.md) (first redesign) and [`UI_V2_REPORT.md`](UI_V2_REPORT.md) (Simple / Technical modes).
 
 ---
 
@@ -330,11 +337,11 @@ CropYieldPrediction/
 │   ├── explain.py             # Permutation importance and SHAP helpers
 │   ├── india.py               # India cleaning, time-split CV, lookup baseline, ablation
 │   └── pipeline.py            # End-to-end Kaggle pipeline (python -m src.pipeline)
-├── tests/                     # 31 pytest tests: data integrity, leakage guards, models, SHAP, India, plain-language text
+├── tests/                     # 47 pytest tests: data integrity, leakage guards, models, SHAP, India, unseen categories, leaderboard order, notebook setup, plain-language text
 ├── results/
 │   ├── figures/               # Every plot (eda_*, diag_*, explain_*, india_*, model comparison)
 │   └── tables/                # Every results table (CSV/JSON)
-├── models/                    # Saved pipelines (.joblib files are git-ignored; small .json metadata is not). Regenerated by the pipelines
+├── models/                    # Saved pipelines. best_overall.joblib (app) and best_tree.joblib (notebook 03) are committed; the India model is git-ignored. Regenerated by the pipelines
 ├── submissions/               # Local Kaggle submission file (never uploaded)
 ├── ui/
 │   ├── theme.py               # Palette constants and dashboard CSS (cards, pill tabs, KPI and hero cards, ⓘ tooltips)
@@ -343,12 +350,15 @@ CropYieldPrediction/
 ├── .streamlit/
 │   └── config.toml            # Streamlit theme: palette, Inter font, forced light mode, minimal toolbar
 ├── docs/
-│   └── screenshots/           # App screenshots: first redesign (before_/after_) and Simple/Technical modes (v2_)
+│   └── screenshots/           # App screenshots: Simple/Technical modes (v2_); archive/ holds the first redesign (before_/after_/v1_)
 ├── app.py                     # Streamlit demo
 ├── run.py                     # One-command entry point: set up what's missing, then launch (dev/build/check/app)
 ├── start.bat                  # Double-click launcher for Windows; runs python run.py
-├── requirements.txt           # Direct dependencies
-├── requirements-lock.txt      # Exact versions that produced the reported results
+├── requirements.txt           # Runtime packages, pinned, cross-platform (Windows, Linux, macOS, Colab, Streamlit Cloud)
+├── requirements-dev.txt       # + Jupyter, ruff, pytest, Kaggle client (same pins)
+├── requirements-lock-windows.txt # Full Windows lock that produced the reported results
+├── CHANGELOG.md               # Mid-term → end-sem changes, then per phase
+├── PROGRESS.md                # Audit, roadmap and per-phase measured results
 ├── CROP_YIELD_BUILD_REPORT.md # Full technical report with verification evidence
 ├── UI_REDESIGN_REPORT.md      # Dashboard redesign: before/after screenshots, scroll measurements, checks
 ├── UI_V2_REPORT.md            # Simple/Technical modes: sentence-to-number checks, fit measurements
@@ -359,7 +369,7 @@ CropYieldPrediction/
 
 | File | Contents |
 |---|---|
-| `cv_all_models.csv` / `test_results.csv` | Kaggle CV and final test metrics |
+| `cv_all_models.csv` / `test_results.csv` | Kaggle CV and final test metrics (test_results is in CV order and includes train RMSE) |
 | `cv_groupkfold.csv` | Leave-one-region-out check |
 | `best_params.json` | Tuned tree hyperparameters |
 | `feature_signal.csv` | Pearson, Spearman and mutual information per feature |
@@ -377,7 +387,7 @@ CropYieldPrediction/
 
 ### Quick start
 
-**Double-click `start.bat`.** That's the whole setup: the Python equivalent of `npm run dev`. It needs Python 3.10+ installed and a Kaggle API token (Step 2 below). It works from anywhere, with no virtual environment to activate.
+**Double-click `start.bat`.** That's the whole setup: the Python equivalent of `npm run dev`. It needs Python 3.12+ installed and a Kaggle API token (Step 2 below). It works from anywhere, with no virtual environment to activate.
 
 On the first run it creates `.venv`, installs the locked package versions, downloads the Kaggle data, trains the models, runs the India validation (if the India CSV is present), and opens the app at http://localhost:8501. Later runs skip everything that already exists and go straight to the app. If anything is missing or fails, it stops, names the step, and prints the exact command to re-run just that step.
 
@@ -393,19 +403,45 @@ On the first run it creates `.venv`, installs the locked package versions, downl
 
 ### Manual steps (what start.bat does for you)
 
-Tested on Windows 11 with Python 3.14.4 (the project needs Python 3.10+; `requirements-lock.txt` was produced on 3.14.4). All models run on CPU; no GPU is needed.
+Tested on Windows 11 with Python 3.14.4. The pinned packages need **Python 3.12 or newer** (3.11 fails on `contourpy==1.4.0`). All models run on CPU; no GPU is needed.
 
 ### Step 1 — Clone and set up the environment
 
+Three requirement files, all with the same pinned versions:
+
+| File | Use it for |
+|---|---|
+| `requirements.txt` | Running the app, pipelines and notebooks on any platform (Windows, Linux, macOS, Colab, Streamlit Cloud) |
+| `requirements-dev.txt` | The above plus Jupyter, ruff, pytest and the Kaggle client (development) |
+| `requirements-lock-windows.txt` | The exact full Windows environment that produced the reported numbers |
+
+**Windows:**
+
 ```bat
-git clone <repository-url>
+git clone https://github.com/SauravLamba17/CropYieldPrediction.git
 cd CropYieldPrediction
 python -m venv .venv
 .venv\Scripts\activate
-python -m pip install -r requirements-lock.txt
+python -m pip install -r requirements-lock-windows.txt
 ```
 
-Use `requirements-lock.txt` to get the exact library versions that produced the reported numbers.
+**Linux / macOS:**
+
+```bash
+git clone https://github.com/SauravLamba17/CropYieldPrediction.git
+cd CropYieldPrediction
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements-dev.txt
+```
+
+`python run.py` does this for you and picks the right file for the platform. On Linux, XGBoost also pulls in NVIDIA's NCCL library (`nvidia-nccl-cu13`, not pinned); it is unused on CPU.
+
+The trained Kaggle models are committed, so after this step `python -m streamlit run app.py` (or `python run.py app`) opens the dashboard straight away; Steps 2–5 are only needed to rebuild the results.
+
+### Run the notebooks in Google Colab
+
+Open a notebook from GitHub in Colab (File → Open notebook → GitHub, paste the repository URL) and run the first code cell, **Setup (Colab)**. It clones the repository into `/content/CropYieldPrediction`, installs `requirements.txt`, and switches to that folder; everywhere else the cell only locates the project root. If Colab asks to restart the runtime after the install, restart and run the cell again. Notebooks 01–03 need nothing else: the train/test split and the models are in the repository. Notebook 04 also needs the India CSV: upload it to `data/raw/india/crop_yield.csv` in the cloned folder.
 
 ### Step 2 — Kaggle access
 
@@ -421,7 +457,7 @@ Never place the token inside the project folder.
 python -m kaggle competitions download -c crop-yield-prediction-challenge -p data/raw/kaggle
 ```
 
-Unzip the archive into `data/raw/kaggle/`.
+Unzip the archive into `data/raw/kaggle/` (`run.py` does this automatically). The zip can be deleted afterwards.
 
 For the India data, download the CSV from https://data.mendeley.com/datasets/ncw2vbcgnk ("Download All"), extract it, and place the CSV at `data/raw/india/crop_yield.csv` (the code expects exactly this file name, set in `src/config.py`).
 
@@ -436,10 +472,12 @@ The first command runs the Kaggle pipeline end to end: split, cross-validation, 
 
 | Step | Time |
 |---|---|
-| `python -m src.pipeline` | 5 min 9 s (run A, including ruff and pytest) and 9 min 40 s (run B) |
-| `python -m src.india` (including the ablation) | 13 min 22 s |
+| `python -m src.pipeline` | 12 min 37 s |
+| `python -m src.india` (including the ablation and the time-ordered penalty search) | 22 min 40 s |
+| 4 notebooks (`run.py build`, step 5) | 3 min 57 s |
+| **Full `python run.py build`** | **39 min 15 s** |
 
-Expect roughly 20–25 minutes for both together. The India Random Forest search takes the longest.
+Measured in Phase 1 on a fresh clone (Windows 11, Python 3.14.4, 16 logical CPUs). Installing `requirements-dev.txt` into a fresh venv took 5 min 59 s. The India tree searches take the longest.
 
 ### Step 5 — Execute the notebooks
 
@@ -447,7 +485,7 @@ Expect roughly 20–25 minutes for both together. The India Random Forest search
 python -m jupyter nbconvert --to notebook --execute --inplace notebooks/01_eda.ipynb notebooks/02_diagnostics.ipynb notebooks/03_explain.ipynb notebooks/04_india.ipynb
 ```
 
-Or open them in Jupyter and run them top to bottom. In the final verification run all four notebooks took 1 min 52 s: 01 took 22 s, 02 took 7 s, 03 took 9 s, and 04 took 74 s (mostly the Random Forest SHAP computation).
+Or open them in Jupyter and run them top to bottom; they work with the working directory at the repo root or at `notebooks/`. Measured in Phase 1: from `notebooks/` 01 took 53 s, 02 18 s, 03 21 s and 04 143 s (234 s in total); from the repo root 62 s, 21 s, 28 s and 159 s (270 s). Notebook 04 is the slowest (mostly the Random Forest SHAP computation).
 
 ### Step 6 — Launch the app
 
@@ -460,7 +498,7 @@ It opens at http://localhost:8501.
 ### Step 7 — Run the checks
 
 ```bat
-python -m ruff check src tests app.py
+python -m ruff check src tests ui app.py run.py
 python -m pytest -q
 ```
 
@@ -469,7 +507,7 @@ python -m pytest -q
 ## 10. Verification and reproducibility
 
 - **Deterministic:** every random process uses `RANDOM_STATE = 42`. Two independent full pipeline runs produced **byte-identical** `test_results.csv`, `best_params.json` and `submission.csv` (verified by file hash).
-- **31 automated tests** cover split integrity, the preprocessor being fitted only on training data, `Production` never reaching an India model, the test years staying strictly after the training years, per-hectare conversions, SHAP additivity, the ablation logic, and the app's plain-language sentences (correct rounded numbers, curve shapes).
+- **47 automated tests** (none of which write to tracked files) cover split integrity, the preprocessor being fitted only on training data, `Production` never reaching an India model, the test years staying strictly after the training years, per-hectare conversions, SHAP additivity, the ablation logic, unseen categories, the leaderboard's CV ordering, the notebooks' setup cell (from the repo root and from `notebooks/`), and the app's plain-language sentences (correct rounded numbers, curve shapes, no t/ha on India).
 - **Leakage guard:** every result was checked against a red-flag threshold of R² > 0.98 in the verification checklist. The code has no automatic stop. The best observed R² was 0.77.
 - **Notebooks** execute top to bottom with zero errors, and every claim in their text was checked against the printed output.
 - **Self-review:** a line-by-line review of the whole codebase found 0 critical, 1 high, 4 medium and 12 low issues. All critical and high findings were resolved. See `CODE_REVIEW.md`.
@@ -485,8 +523,10 @@ python -m pytest -q
 3. **The India data has quality issues:** 82 physically implausible yield records were kept and reported rather than silently removed.
 4. **State-level aggregation.** India yields are averaged over whole states, which hides the field-level variation a farmer would care about.
 5. **India SHAP uses a 300-row sample** of the test years, because the Random Forest explainer is single-threaded and too slow on the full set.
-6. **One open medium-severity review item:** on India, the Ridge and Lasso penalty strengths are chosen with inner folds that are not time-ordered. It does not change any headline result.
-7. **Associations, not causes.** This is observational data, so the results show which variables predict yield, not what would happen if a farmer changed them.
+6. **India units are mixed.** Most crops are in tonnes per hectare, but cotton, jute, mesta and sannhemp are counted in bales per hectare, so the pooled India RMSE has no single unit. The app labels it "yield units (varies by crop)".
+7. **Unseen categories.** A crop, state or season never seen in training is one-hot encoded as all zeros (`handle_unknown="ignore"`), so the model falls back to its baseline for that column instead of failing. On India this affects 10 test rows ("Other Summer Pulses", which only appears in 2016–2020). The crop × state look-up falls back to the overall training mean.
+8. **Platform.** The pinned versions need Python 3.12+. Dependencies were verified to resolve for Linux (Python 3.12 and 3.14) and installed and run on Windows; the app has not yet been deployed to Streamlit Cloud (Phase 5).
+9. **Associations, not causes.** This is observational data, so the results show which variables predict yield, not what would happen if a farmer changed them.
 
 ---
 
