@@ -1,0 +1,70 @@
+model,term,feature,label,coef,ci_low,ci_high,crosses_zero,n_boot
+multiple_lr,fertilizer_amount,fertilizer_amount,fertilizer_amount,0.8793060028346646,0.8546239287397918,0.9056567436987917,False,500
+multiple_lr,pesticide_usage,pesticide_usage,pesticide_usage,-0.26518492530236676,-0.28491849183558976,-0.2438511355385353,False,500
+multiple_lr,total_rainfall,total_rainfall,total_rainfall,0.21417745736784233,0.1933335977975443,0.23498043585947623,False,500
+multiple_lr,soil_moisture,soil_moisture,soil_moisture,0.06815190074373981,0.048683935499172395,0.08822354147094838,False,500
+multiple_lr,crop_type_Wheat,crop_type,crop_type = Wheat (vs Barley),-0.0659418288641328,-0.1368741957992656,-0.0029606573776660306,False,500
+multiple_lr,crop_type_Rice,crop_type,crop_type = Rice (vs Barley),-0.0656838690826391,-0.1309018032212227,0.00066294313648895,True,500
+multiple_lr,avg_temperature,avg_temperature,avg_temperature,-0.0626805076364702,-0.08305467283904913,-0.041889732400092694,False,500
+multiple_lr,nitrogen_content,nitrogen_content,nitrogen_content,0.06048857671416352,0.040292801638243204,0.08031698470403123,False,500
+multiple_lr,potassium_content,potassium_content,potassium_content,0.05651528313542575,0.03517426076993447,0.07545392758953551,False,500
+multiple_lr,region_South,region,region = South (vs Central),-0.043575347823107624,-0.10516829724887775,0.021216204324398982,True,500
+multiple_lr,region_North,region,region = North (vs Central),0.03583837452023228,-0.03422026726363802,0.09372882548903629,True,500
+multiple_lr,sunlight_hours,sunlight_hours,sunlight_hours,0.027282888308712543,0.007271095093915924,0.047768813339099374,False,500
+multiple_lr,phosphorus_content,phosphorus_content,phosphorus_content,0.02528572687627361,0.005411185176756086,0.04554488813396533,False,500
+multiple_lr,crop_type_Corn,crop_type,crop_type = Corn (vs Barley),-0.0216373092003184,-0.08672086186477529,0.04516534949837996,True,500
+multiple_lr,region_West,region,region = West (vs Central),-0.016127887473738993,-0.08001868196449163,0.04379391576326113,True,500
+multiple_lr,irrigation_frequency,irrigation_frequency,irrigation_frequency,0.014788283106881425,-0.005793301972919806,0.035571936589883627,True,500
+multiple_lr,soil_ph,soil_ph,soil_ph,0.013188114170754153,-0.0052177164822459704,0.03396560453946191,True,500
+multiple_lr,season_Summer,season,season = Summer (vs Autumn),0.012052292317788512,-0.03738869554999661,0.05822155160082432,True,500
+multiple_lr,season_Spring,season,season = Spring (vs Autumn),-0.005381698915104928,-0.05620816902828384,0.04399719267961834,True,500
+multiple_lr,crop_type_Soybean,crop_type,crop_type = Soybean (vs Barley),0.004218828710937936,-0.06697003199924323,0.06904401612925185,True,500
+multiple_lr,region_East,region,region = East (vs Central),-0.0018830623053950738,-0.06724994480980956,0.06868058642871337,True,500
+ridge,fertilizer_amount,fertilizer_amount,fertilizer_amount,0.8735104349655951,0.8489483392272734,0.9000543670812677,False,500
+ridge,pesticide_usage,pesticide_usage,pesticide_usage,-0.2635319533283683,-0.28325545060353646,-0.24225294812544299,False,500
+ridge,total_rainfall,total_rainfall,total_rainfall,0.21276525284777253,0.19219103054926728,0.23345820201785253,False,500
+ridge,soil_moisture,soil_moisture,soil_moisture,0.06771145870128739,0.0484890374827596,0.08764868201240854,False,500
+ridge,avg_temperature,avg_temperature,avg_temperature,-0.062137579557077285,-0.08225086694744982,-0.04140050828020986,False,500
+ridge,nitrogen_content,nitrogen_content,nitrogen_content,0.06004035655064775,0.03990630572822141,0.07972790877380491,False,500
+ridge,potassium_content,potassium_content,potassium_content,0.05607865967396194,0.03492760629880417,0.07487193574488743,False,500
+ridge,region_North,region,region = North,0.03968899041139215,-0.0032355521710690075,0.07877618445015214,True,500
+ridge,region_South,region,region = South,-0.03727804490721637,-0.07986236973736985,0.002218696179224698,True,500
+ridge,crop_type_Wheat,crop_type,crop_type = Wheat,-0.0348386461155409,-0.07438945319743864,0.002744059575677569,True,500
+ridge,crop_type_Rice,crop_type,crop_type = Rice,-0.03461439630497385,-0.07489372634268829,0.005872199536922751,True,500
+ridge,crop_type_Soybean,crop_type,crop_type = Soybean,0.032722306406706377,-0.00932519554393953,0.07177424350229487,True,500
+ridge,crop_type_Barley,crop_type,crop_type = Barley,0.028986617506984884,-0.012300986408761011,0.0698004091272746,True,500
+ridge,sunlight_hours,sunlight_hours,sunlight_hours,0.027273743866659986,0.00741925175837464,0.0475294469866331,False,500
+ridge,phosphorus_content,phosphorus_content,phosphorus_content,0.025225833417537685,0.005594790479774185,0.04532319578479704,False,500
+ridge,irrigation_frequency,irrigation_frequency,irrigation_frequency,0.014778150780611548,-0.005750391256909766,0.03540373741601114,True,500
+ridge,soil_ph,soil_ph,soil_ph,0.013140924654090625,-0.005032613650795801,0.033808783947408036,True,500
+ridge,region_West,region,region = West,-0.010735074914451193,-0.047276008116941076,0.024336789593937886,True,500
+ridge,season_Summer,season,season = Summer,0.009714724511177109,-0.01873349307174134,0.03603768325547907,True,500
+ridge,crop_type_Corn,crop_type,crop_type = Corn,0.007744118506816465,-0.03037161493432416,0.04897332488753964,True,500
+ridge,season_Spring,season,season = Spring,-0.007352616032707149,-0.036946661960057074,0.020330632983922594,True,500
+ridge,region_Central,region,region = Central,0.0048859332040199766,-0.03446907552442036,0.04449298522457393,True,500
+ridge,region_East,region,region = East,0.003438196206256461,-0.03567234659099456,0.04360533545861234,True,500
+ridge,season_Autumn,season,season = Autumn,-0.0023621084784634094,-0.029776953290387608,0.026149815076791868,True,500
+lasso,fertilizer_amount,fertilizer_amount,fertilizer_amount,0.8766673302709577,0.8514154611526308,0.9021903454342958,False,500
+lasso,pesticide_usage,pesticide_usage,pesticide_usage,-0.26249797118026263,-0.28303667319306225,-0.24012653853424096,False,500
+lasso,total_rainfall,total_rainfall,total_rainfall,0.21088619021321214,0.19029526650052592,0.2326108466798549,False,500
+lasso,soil_moisture,soil_moisture,soil_moisture,0.06535959385308883,0.04591835530071502,0.08556794949676494,False,500
+lasso,avg_temperature,avg_temperature,avg_temperature,-0.05993740395356301,-0.08016020375550668,-0.038126803041101824,False,500
+lasso,nitrogen_content,nitrogen_content,nitrogen_content,0.05762445479141623,0.03742743169256517,0.07814971609823124,False,500
+lasso,potassium_content,potassium_content,potassium_content,0.053304200104669526,0.03254664622868926,0.07248850317751852,False,500
+lasso,crop_type_Rice,crop_type,crop_type = Rice,-0.02853462154738545,-0.08075125661958106,-0.0,True,500
+lasso,crop_type_Wheat,crop_type,crop_type = Wheat,-0.028490734101770013,-0.08492722855527318,0.0,True,500
+lasso,region_North,region,region = North,0.026865677044683005,0.0,0.08073368861696165,True,500
+lasso,sunlight_hours,sunlight_hours,sunlight_hours,0.024747128538736927,0.003885161563210667,0.04429308350340514,False,500
+lasso,region_South,region,region = South,-0.02314184398112399,-0.07613743920307323,-0.0,True,500
+lasso,phosphorus_content,phosphorus_content,phosphorus_content,0.02231005261059255,0.0018535182185700628,0.04234485803268109,False,500
+lasso,irrigation_frequency,irrigation_frequency,irrigation_frequency,0.011946342125178902,-0.002808668349737539,0.03256172418608485,True,500
+lasso,crop_type_Soybean,crop_type,crop_type = Soybean,0.011088784047782225,0.0,0.07328701892514326,True,500
+lasso,soil_ph,soil_ph,soil_ph,0.009962126221124972,-0.0031625942327845476,0.0321429596255474,True,500
+lasso,crop_type_Barley,crop_type,crop_type = Barley,0.00758288345232822,0.0,0.06702528468772412,True,500
+lasso,season_Summer,season,season = Summer,0.0027304727562766184,-0.010480871569525855,0.03948483896330857,True,500
+lasso,crop_type_Corn,crop_type,crop_type = Corn,0.0,-0.008326181932758409,0.035558037887637825,True,500
+lasso,region_East,region,region = East,0.0,-0.02600692845373835,0.042727097399542245,True,500
+lasso,region_Central,region,region = Central,0.0,-0.02415618940225344,0.0425565467741509,True,500
+lasso,region_West,region,region = West,-0.0,-0.046326774186684294,0.012477331980802475,True,500
+lasso,season_Autumn,season,season = Autumn,-0.0,-0.02706102329140471,0.024092725547442226,True,500
+lasso,season_Spring,season,season = Spring,-0.0,-0.039931212398377866,0.012001409225118605,True,500

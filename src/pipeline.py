@@ -19,6 +19,7 @@ from src import config
 from src.data import load_kaggle_competition_test, make_split, split_xy
 from src.eda import top_pearson_feature
 from src.evaluate import conformal_interval, cross_validate_models, holdout_metrics
+from src.explain_tables import save_explainability
 from src.models import (
     BOOSTING_LIBRARY,
     chosen_alpha,
@@ -255,6 +256,9 @@ def main() -> None:
     )
     save_app_metadata(train_df)
     save_conformal(models[best_overall], fitted[best_overall], best_overall, train_df, test_df)
+    save_explainability(
+        fitted[best_overall], best_overall, fitted[best_tree], best_tree, models, train_df, test_df
+    )
     write_submission(fitted[best_overall])
     logger.info("Done.")
 
