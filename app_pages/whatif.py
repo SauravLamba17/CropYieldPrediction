@@ -3,7 +3,6 @@
 import numpy as np
 import pandas as pd
 import streamlit as st
-
 from src import config
 from ui import charts, data, labels, plain
 from ui.components import card_title, headline_card, setup_card
@@ -63,6 +62,39 @@ with st.container(key="card-whatif"):
     st.page_link("app_pages/predict.py", label="Change the field on the Predict page",
                  icon=":material/arrow_back:")
 
+with st.container(key="card-heatmap"):
+    head, px, py = st.columns([4, 2, 2], vertical_alignment="center")
+    with head:
+        card_title(
+            "Two factors at once",
+            "Predicted yield over a 25 × 25 grid of two inputs, everything else as set on Predict",
+            help_text=TIPS["heatmap"],
+        )
+    with px:
+        fx = st.selectbox("Across", config.NUMERIC_FEATURES, format_func=lambda f: labels.name(f, simple),
+                          key="heat_x")
+    with py:
+        fy_options = [f for f in config.NUMERIC_FEATURES if f != fx]
+        if st.session_state.get("heat_y") == fx:  # never the same input on both axes
+            st.session_state["heat_y"] = fy_options[0]
+        fy = st.selectbox("Up", fy_options, format_func=lambda f: labels.name(f, simple), key="heat_y")
+    with st.spinner("Predicting 625 field variations…", show_time=True):
+        grid = data.heatmap(fx, fy, inputs)
+    current_inputs = dict(zip(config.FEATURES, inputs))
+    current = (current_inputs[fx], current_inputs[fy], data.prediction(inputs))
+    top = grid.loc[grid["pred"].idxmax()]
+    st.altair_chart(
+        charts.heatmap_chart(grid, labels.label(fx, simple), labels.label(fy, simple), current,
+                             (top["x"], top["y"], top["pred"]), 380)
+    )
+    st.html(
+        '<p class="plain-text">'
+        f"Best cell in this grid: <b>{labels.name(fx, simple)} {top['x']:.1f} {labels.unit(fx)}</b> with "
+        f"<b>{labels.name(fy, simple).lower()} {top['y']:.1f} {labels.unit(fy)}</b> → <b>{top['pred']:.2f} t/ha</b>, "
+        f"against <b>{current[2]:.2f} t/ha</b> now (◆). The grid stays inside the values seen in the "
+        "training data: the model is only reliable inside the observed data range.</p>"
+    )
+
 group_side, feature_side = st.columns([2, 3], gap="medium")
 if simple:
     with group_side, st.container(key="card-groups", height="stretch"):
@@ -107,7 +139,8 @@ else:
             with head:
                 card_title("SHAP beeswarm", "Each dot is one held-out field (XGBoost)",
                            help_text=TIPS["beeswarm"])
-            frame = data.tree_shap_frame()
+            with st.spinner("Computing SHAP for 960 test fields…", show_time=True):
+                frame = data.tree_shap_frame()
             frame = frame.assign(
                 feature=frame["feature"].map(labels.name),
                 jitter=np.random.default_rng(config.RANDOM_STATE).uniform(-0.8, 0.8, len(frame)),
