@@ -3,13 +3,14 @@
 Kaggle: t/ha. India: the units reported per crop (mostly t/ha), never log units.
 """
 
+import math
 from typing import Any
 
 import numpy as np
 import pandas as pd
 from sklearn.base import RegressorMixin
 from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
-from sklearn.model_selection import cross_validate
+from sklearn.model_selection import cross_val_predict, cross_validate
 
 from src.data import make_kfold
 from src.models import chosen_alpha
@@ -66,4 +67,48 @@ def holdout_metrics(y_true: pd.Series, y_pred: np.ndarray) -> dict[str, float]:
         "rmse": root_mean_squared_error(y_true, y_pred),
         "mae": mean_absolute_error(y_true, y_pred),
         "r2": r2_score(y_true, y_pred),
+    }
+
+
+CONFORMAL_ALPHA = 0.10  # 90% prediction interval
+
+
+def conformal_quantile(residuals: np.ndarray, alpha: float = CONFORMAL_ALPHA) -> float:
+    """Split-conformal half-width: the ceil((n + 1)(1 - alpha))-th smallest |residual|.
+
+    With exchangeable data, prediction ± this value covers a new true value with
+    probability at least 1 - alpha (finite-sample guarantee).
+    """
+    scores = np.sort(np.abs(np.asarray(residuals, dtype=float)))
+    n = len(scores)
+    rank = min(math.ceil((n + 1) * (1 - alpha)), n)
+    return float(scores[rank - 1])
+
+
+def conformal_interval(
+    model: RegressorMixin,
+    fitted: RegressorMixin,
+    X_train: pd.DataFrame,
+    y_train: pd.Series,
+    X_test: pd.DataFrame,
+    y_test: pd.Series,
+    alpha: float = CONFORMAL_ALPHA,
+) -> dict:
+    """90% interval from the out-of-fold CV residuals of `model`, checked once on the test set.
+
+    The calibration residuals come from the same 5 folds as the model comparison
+    (each training field predicted by a model that never saw it); `fitted` is the
+    deployed model refitted on all training rows, as used by the app.
+    """
+    oof = cross_val_predict(model, X_train, y_train, cv=make_kfold(), n_jobs=-1)
+    q = conformal_quantile(y_train.to_numpy() - oof, alpha)
+    miss = np.abs(y_test.to_numpy() - fitted.predict(X_test))
+    return {
+        "method": "split-conformal on out-of-fold 5-fold CV residuals",
+        "level": 1 - alpha,
+        "n_calibration": len(y_train),
+        "quantile": q,
+        "interval_width": 2 * q,
+        "n_test": len(y_test),
+        "test_coverage": float(np.mean(miss <= q)),
     }

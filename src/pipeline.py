@@ -18,7 +18,7 @@ from sklearn.model_selection import GroupKFold
 from src import config
 from src.data import load_kaggle_competition_test, make_split, split_xy
 from src.eda import top_pearson_feature
-from src.evaluate import cross_validate_models, holdout_metrics
+from src.evaluate import conformal_interval, cross_validate_models, holdout_metrics
 from src.models import (
     BOOSTING_LIBRARY,
     chosen_alpha,
@@ -180,6 +180,24 @@ def save_app_metadata(train_df: pd.DataFrame) -> dict:
     return metadata
 
 
+def save_conformal(
+    model: RegressorMixin,
+    fitted: RegressorMixin,
+    name: str,
+    train_df: pd.DataFrame,
+    test_df: pd.DataFrame,
+) -> dict:
+    """90% prediction interval for the deployed model; saved for the app (never recomputed there)."""
+    X_train, y_train = split_xy(train_df)
+    X_test, y_test = split_xy(test_df)
+    result = {"model": name, **conformal_interval(model, fitted, X_train, y_train, X_test, y_test)}
+    (config.TABLES_DIR / "conformal.json").write_text(json.dumps(result, indent=2))
+    logger.info(
+        "Conformal 90%%: +/- %.4f t/ha, test coverage %.4f", result["quantile"], result["test_coverage"]
+    )
+    return result
+
+
 def write_submission(model: RegressorMixin) -> None:
     """Predict the unlabelled competition test file in sample_submission format (NOT uploaded)."""
     competition_test = load_kaggle_competition_test()
@@ -236,6 +254,7 @@ def main() -> None:
         )
     )
     save_app_metadata(train_df)
+    save_conformal(models[best_overall], fitted[best_overall], best_overall, train_df, test_df)
     write_submission(fitted[best_overall])
     logger.info("Done.")
 

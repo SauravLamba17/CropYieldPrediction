@@ -1,0 +1,10 @@
+{
+  "model": "polynomial",
+  "method": "split-conformal on out-of-fold 5-fold CV residuals",
+  "level": 0.9,
+  "n_calibration": 3840,
+  "quantile": 1.0367275030091951,
+  "interval_width": 2.0734550060183903,
+  "n_test": 960,
+  "test_coverage": 0.8854166666666666
+}
