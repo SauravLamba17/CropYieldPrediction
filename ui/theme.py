@@ -382,6 +382,10 @@ footer, [data-testid="stDecoration"] {{ display: none !important; }}
     .st-key-card-inputs [data-testid="stHorizontalBlock"]:has(.st-key-preset)
         > [data-testid="stColumn"]:last-child {{ flex: 0 0 auto !important; width: auto !important;
         min-width: 180px !important; }}
+    /* report card: title on its own row, the two download buttons share the next (full labels) */
+    .st-key-card-report [data-testid="stHorizontalBlock"] {{ flex-wrap: wrap; }}
+    .st-key-card-report [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child {{
+        flex: 1 1 100% !important; min-width: 100% !important; }}
 }}
 @media (max-width: 899.98px) {{
     [data-testid="stMainBlockContainer"] {{ padding-left: var(--sp-4) !important;

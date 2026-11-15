@@ -143,7 +143,7 @@ with st.container(key="card-ab"):
     kpi_row([
         Kpi("Scenario A", f"{pred_a:.2f}", "t/ha", ranges(pred_a)),
         Kpi("Scenario B", f"{pred_b:.2f}", "t/ha", ranges(pred_b), accent=True),
-        Kpi("B − A", f"{diff:+.2f}".replace("-", "−"), "t/ha",
+        Kpi("B − A", plain.signed(diff), "t/ha",
             f"{diff / pred_a:+.1%} of A".replace("-", "−")),
     ])
     changed = [labels.name(f, simple) for f, a, b in zip(config.FEATURES, a_inputs, b_inputs) if a != b]
@@ -153,7 +153,7 @@ with st.container(key="card-ab"):
                                          {f: labels.name(f, simple) for f in config.FEATURES},
                                          max(160, 28 * max(len(shown), 3))))
         caption(f"Changed in B: {', '.join(changed)}. The bars (SHAP of B minus SHAP of A) add up to "
-                f"{gap.sum():+.2f} t/ha, the gap between the two predictions.".replace("-", "−"))
+                f"{plain.signed(gap.sum())} t/ha, the gap between the two predictions.")
     else:
         caption("B is the same as A. Open “Scenario B inputs” and move a slider to compare.")
     frame = comparison_frame(

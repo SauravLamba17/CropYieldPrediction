@@ -190,8 +190,9 @@ WORKS_WELL = 0.5  # per-crop typical error under 50% of the crop's average yield
 
 
 def signed(value: float, decimals: int = 2) -> str:
-    """'+0.10' / '−0.15' with a typographic minus."""
-    return f"{value:+.{decimals}f}".replace("-", MINUS)
+    """'+0.10' / '−0.15' with a typographic minus; a value that rounds to zero is '0.00'."""
+    text = f"{value:+.{decimals}f}"
+    return text[1:] if float(text) == 0 else text.replace("-", MINUS)
 
 
 def pct(share: float) -> str:

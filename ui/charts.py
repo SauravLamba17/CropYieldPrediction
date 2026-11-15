@@ -13,6 +13,7 @@ import altair as alt
 import numpy as np
 import pandas as pd
 
+from ui.plain import signed
 from ui.theme import SERIES
 
 FONT = "Inter, system-ui, -apple-system, 'Segoe UI', sans-serif"
@@ -81,9 +82,9 @@ def style(chart: alt.TopLevelMixin, height: int) -> alt.TopLevelMixin:
     )
 
 
-def _value_labels(base: alt.Chart, value: str, fmt: str) -> alt.LayerChart:
-    """Signed value labels just outside each bar (right of positive, left of negative)."""
-    text = alt.Text(f"{value}:Q", format=fmt)
+def _value_labels(base: alt.Chart, value: str, label: str) -> alt.LayerChart:
+    """Text from column `label` just outside each bar (right of positive, left of negative)."""
+    text = alt.Text(f"{label}:N")
     pos = base.transform_filter(f"datum['{value}'] >= 0").mark_text(
         align="left", dx=5, fontWeight=600
     )
@@ -101,6 +102,7 @@ def contribution_chart(data: pd.DataFrame, height: int, unit: str = "t/ha") -> a
     frame = data.assign(
         series=np.where(data["value"] >= 0, "shap_pos", "shap_neg"),
         direction=np.where(data["value"] >= 0, "Raises yield", "Lowers yield"),
+        label=[signed(v) for v in data["value"]],  # "0.00", never "−0.00" (Vega's +.2f keeps the sign)
     )
     limit = max(float(frame["value"].abs().max()), 0.01) * 1.4
     y = alt.Y(
@@ -124,7 +126,7 @@ def contribution_chart(data: pd.DataFrame, height: int, unit: str = "t/ha") -> a
     zero = alt.Chart(pd.DataFrame({"x": [0]})).mark_rule(opacity=0.5).encode(
         x="x:Q", color=solid("neutral")
     )
-    return style(alt.layer(bars, zero, _value_labels(base, "value", "+.2f")), height)
+    return style(alt.layer(bars, zero, _value_labels(base, "value", "label")), height)
 
 
 def waterfall_chart(
