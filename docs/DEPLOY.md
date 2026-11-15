@@ -12,7 +12,7 @@ Community Cloud looks for a dependency file in the entry point's folder, then in
 |---|---|
 | `requirements.txt` (what Cloud installs) | 55 packages, **782 MB** installed |
 | Before the split (old `requirements.txt`) | 1,097 MB, including 205 MB of NVIDIA NCCL and the 84 MB GPU build of xgboost |
-| `requirements-dev.txt` (pipelines, notebooks, tests) | 1,320 MB |
+| `requirements-dev.txt` (pipelines, notebooks, tests) | 1,054 MB (1,320 MB before the split) |
 
 Installing `requirements.txt` into a fresh venv took **5 min 04 s** on the development laptop (Windows 11, Python 3.14.4; 788 MB on disk there); the time on Cloud will differ, so allow several minutes for the first deploy.
 
@@ -31,7 +31,7 @@ Installing `requirements.txt` into a fresh venv took **5 min 04 s** on the devel
    - **Secrets:** leave empty. The app needs none.
    - Click **Save**.
 6. Click **Deploy**. The log panel shows the `pip install`; the first install takes several minutes, then the app opens.
-7. Copy the app URL into the README: replace `LIVE_DEMO_URL` (two places at the top) and commit.
+7. Copy the app URL into the README: replace `LIVE_DEMO_URL` (top of the README, under the CI badge) and commit.
 
 ## After the deploy: what to check
 

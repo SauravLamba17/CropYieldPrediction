@@ -1,4 +1,4 @@
-# PROGRESS — Phase 0 audit and showcase plan, Phase 1–4 results
+# PROGRESS — Phase 0 audit and showcase plan, Phase 1–5 results
 
 CSL236 AIML course project, Team 2: crop yield prediction (t/ha).
 Audit date: 2026-11-14. Commit audited: `511cdfe`.
@@ -7,6 +7,59 @@ Every number in this file was produced in this session by a fresh `git clone` of
 
 
 > **Screenshots:** since Phase 3 the per-phase captures in `screenshots/` (Phase 0 audit, `phase1/`, `phase2/`, `phase3/`) are git-ignored and local only; they were also removed from the unpushed history (with approval). A curated set is committed in `docs/screenshots/` (`p2_*`, `p3_*`). Paths below that start with `screenshots/` refer to the local folder.
+
+---
+
+## Phase 5 results (2026-11-15): deploy-ready, CI and demo
+
+**Status: showcase-ready.** Still open: the Streamlit Cloud deploy click and the `LIVE_DEMO_URL` in the README (yours), the first CI run (on push), and a team rehearsal of `docs/DEMO_SCRIPT.md`.
+
+Measured in the Phase 5 session:
+- the real repo;
+- a fresh `git clone` in a short `subst` path, with two fresh venvs: one with `requirements.txt` only, one with `requirements-dev.txt`;
+- my own headless Chrome.
+
+The real repo's `.venv` was not modified, and nothing on port 8501 was touched.
+
+| Check | Result |
+|---|---|
+| Runtime import audit | The app needs 12 packages directly: streamlit, altair, pandas, numpy, pyarrow, scikit-learn, scipy, matplotlib, joblib, shap, lightgbm and xgboost. xgboost and shap are needed at runtime: Kernel SHAP on Predict, and the saved XGBoost model for TreeSHAP. statsmodels and seaborn are not needed. |
+| Linux / Python 3.12 resolution (`uv pip compile`) | All three files resolve with 0 errors and no NVIDIA packages: `requirements.txt` 55, `requirements-pipeline.txt` 61, `requirements-dev.txt` 151 packages |
+| Linux install size (`uv pip install --target`) | runtime **782 MB**, vs 1,097 MB for the old `requirements.txt` (205 MB NVIDIA NCCL, 84 MB GPU xgboost); `requirements-pipeline.txt` 832 MB, `requirements-dev.txt` 1,054 MB (1,320 MB before) |
+| (a) Fresh clone, `requirements.txt` only | install 5 min 04 s (Windows, Python 3.14.4, 788 MB). All 7 pages × 2 modes × 2 themes at 1366 px: no exception, **0 geometry problems**, **0 external requests** (3,839). Health check after 2.2 s; first page drawn after 14.6 s; **peak memory 468 MB** RSS (Windows peak working set 498 MB). The CI smoke selection (page renders, health card, runtime import set) passes with only pytest added: 21 passed |
+| (b) Fresh clone, `requirements-dev.txt` | install 6 min 55 s. `python run.py check`: ruff clean; **157 passed, 17 skipped** (no raw data); `git status` clean |
+| (c) Fresh clone, `python run.py build --fast` | exit 0 in **33 min 35 s** (Kaggle pipeline 31 min 31 s, notebooks 2 min 04 s; a Linux package-size measurement shared the CPU for about 10 min of it). Every existing Kaggle metric max \|diff\| **0.0** (only `fit_time_s` differs); `best_overall.joblib` / `best_tree.joblib` byte-identical (sha256); India tables untouched; all 4 notebooks 0 errors |
+| Tie-check reproduction | the per-fold scores reproduce every committed CV mean and std (max \|diff\| 4.4 × 10⁻¹⁶); rerun took 21 min 11 s (sharing the CPU with page tests) |
+| Missing tables | every one of the 30 results files removed in turn, and all at once: all 7 pages, both modes, no exception; the health card names the missing files |
+| Screenshots | Model comparison and India (tie card), and the health card, at 1366 and 768 px, light and dark, both modes: 20 shots, **0 geometry problems**, saved to `screenshots/phase5/` |
+| CI workflow | YAML parsed and checked (triggers, Python 3.12, pip cache, no secrets, no Kaggle download). actionlint is not installed here. The first real run happens on push |
+| Real repo `python run.py check` (with raw data) | ruff clean; **174 passed** (raw data present) |
+
+**Tie check (paired over the 5 CV folds, RMSE of A − RMSE of B):**
+
+| Dataset | A | B | Mean diff | sd | t-test p | Wilcoxon p | Distinguishable? |
+|---|---|---|---|---|---|---|---|
+| Kaggle | polynomial | XGBoost | −0.0013 | 0.0072 | 0.712 | 0.8125 | no |
+| Kaggle | polynomial | HistGB | −0.0043 | 0.0073 | 0.254 | 0.1875 | no |
+| India | RF (all features) | last year's yield | −0.2860 | 1.4218 | 0.676 | 1.0000 | no |
+| India | RF (all features) | crop × state look-up | −0.8482 | 0.6337 | 0.040 | 0.0625 | yes (weak) |
+| India | RF (all features) | HistGB (all features) | −0.1347 | 0.2924 | 0.361 | 0.8125 | no |
+
+With 5 folds, the exact Wilcoxon test has a floor of p = 0.0625, so the verdict uses the t-test (p < 0.05). Folds share training rows, so both tests are optimistic.
+
+**Wording changed:**
+- The India verdict now says the gain over last year's yield is within fold-to-fold noise. Simple mode: "statistically a tie".
+- The Kaggle "practically a tie" note is now backed by a statistical tie.
+
+**Issues found and fixed:**
+- Per-fold CV scores were never saved. With approval, only the 5 compared models were re-run, and the results were verified against the committed tables before anything was written.
+- The what-if curve cache was keyed on every input value with no bound. It is now bounded to 64 entries, and a test asserts every input-keyed cache has a bound.
+- A missing `india_model_names.json` would have raised on the India page. It now shows a setup card.
+- Stale build-time hints: 13 → 26 min for Kaggle, 50 → 105 min for India.
+- The old requirements comment claimed `requirements.txt` covered pipelines and notebooks. The notebooks' Colab cells now install `requirements-pipeline.txt`, because `src.eda` needs statsmodels.
+- My first one-table-missing sweep was invalid: I edited `app.py` while it ran. It was re-run on stable code: 0 of 30 with errors.
+- The tie-sentence grammar ("distinguishable from the look-up it is") and the list joiner were fixed. Both are covered by tests.
+- The server log shows Windows asyncio `ConnectionResetError` lines when the headless browser closes. These are benign and are not app errors.
 
 ---
 
@@ -589,16 +642,17 @@ The Pipeline fix itself is already done. This phase hardens the code around it.
 - [x] Add LightGBM and sklearn `HistGradientBoosting` to the same nested-CV harness (Phase 4: Kaggle comparison rows + India)
 - [x] Optuna (or a wider RandomizedSearch) under the same outer folds; report CV mean ± std and test once (Phase 4: seeded RandomizedSearchCV, 20 candidates)
 - [x] India: crop×state historical-mean feature (computed inside folds) to try to beat the lookup (Phase 4: earlier-years target encoding + lags; beats it only via lags)
-- [ ] Statistical tie check (paired fold differences) so "tie" claims are backed by numbers (deferred: not part of the Phase 4 brief)
+- [x] Statistical tie check (paired fold differences) so "tie" claims are backed by numbers (done in Phase 5: `tie_check.csv`)
 - [x] Update tables and figures; keep model selection by CV only (Phase 4)
 
 ### Phase 5: deploy, README, demo script (≈ 5–7 h)
 
-- [ ] Deploy to Streamlit Community Cloud; smoke-test every page on the public URL
-- [ ] README: live link badge, fresh screenshots (light + dark), 3-command setup, both dataset links
-- [ ] 5-minute demo script with timings + a backup plan (local `start.bat`, pre-recorded GIF, static screenshots)
-- [ ] Rehearse the viva Q&A from `CODE_REVIEW.md` §2, plus the new §4.3 leakage numbers
-- [ ] Final full rebuild + check on a clean clone
+- [ ] Deploy to Streamlit Community Cloud; smoke-test every page on the public URL (prepared in Phase 5: `docs/DEPLOY.md`, runtime-only `requirements.txt`, CI smoke job; the deploy click and the URL check are yours)
+- [x] README: live link badge, fresh screenshots (light + dark), 3-command setup, both dataset links (Phase 5: `LIVE_DEMO_URL` placeholder until deployed, CI badge)
+- [x] 5-minute demo script with timings + a backup plan (local `start.bat`, pre-recorded GIF, static screenshots) (Phase 5: 8 minutes + 2 buffer for 3 presenters; plan B = local app + `docs/screenshots/`; no GIF recorded)
+- [ ] Rehearse the viva Q&A from `CODE_REVIEW.md` §2, plus the new §4.3 leakage numbers (sheet ready: `docs/VIVA_NOTES.md`; the rehearsal is the team's)
+- [x] Final full rebuild + check on a clean clone (full build in Phase 4: 129 min 44 s; Phase 5: `build --fast` + `run.py check` on a fresh clone)
+- [x] GitHub Actions CI (Linux, Python 3.12): lint + tests, and a runtime-only smoke job (Phase 5)
 
 **Total ≈ 39–53 h.** Phase 1 and the I1 fix are the minimum for a safe live demo.
 

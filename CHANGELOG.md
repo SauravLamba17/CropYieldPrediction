@@ -70,3 +70,29 @@ See `PROGRESS.md` (Phase 4 section) for the measured results.
 - **India page:** leaderboard ranked by CV with test as its own column, ablation chart with the look-up reference line, a generated "how the model beats the look-up" card, the 10 worst crops vs the look-up, permutation and SHAP for the selected model, and the new tables. The Simple-mode lessons follow the selected model. Without the Phase 4 tables the page keeps the old view and shows a setup card.
 - `run.py` re-runs the India step when `india_selection.json` is missing.
 - Notebook 04: section 12 (audit, leaderboard, ablation, errors) and an explainability section that reads the saved tables.
+
+## Phase 5 — deploy-ready, CI and demo
+
+See `PROGRESS.md` (Phase 5 section) for the measured results behind each item.
+
+- **Requirements split (approved):** `requirements.txt` is now the app runtime only, which is what Streamlit Community Cloud installs. It pins 12 direct packages at the same versions, with `xgboost-cpu` on Linux (no NVIDIA libraries). `requirements-pipeline.txt` adds statsmodels and seaborn for the pipelines and notebooks, and the Colab cells now install it. `requirements-dev.txt` builds on it. Linux / Python 3.12 install: **782 MB instead of 1,097 MB**.
+- **`python run.py build --fast`:** runs the Kaggle pipeline and the notebooks, and reuses the committed India tables (33 min 35 s vs 129 min 44 s for the full build). The full build is unchanged.
+- **Paired statistical tie check (rerun approved):** `python -m src.tie_check` re-runs only the compared models' CV, with the same code, seeds and folds. It saves per-fold scores (`cv_folds.csv`) after checking they reproduce the committed means and stds (max difference 4.4 × 10⁻¹⁶), then writes `tie_check.csv`. Results:
+  - Kaggle: polynomial vs XGBoost p = 0.71, vs HistGB p = 0.25, both ties.
+  - India random forest (all features): vs last year's yield p = 0.68 (a tie), vs the look-up p = 0.040, vs HistGB (all features) p = 0.36.
+  - In the app: a "Statistically distinguishable?" card on Model comparison and India (Technical). The India verdict now says the gain over last year's yield is within fold-to-fold noise.
+- **Cloud readiness:**
+  - A health-check card under the header lists any missing results table and the command that rebuilds it. Pages never raise: each of the 30 tables was removed in turn, and so were all of them at once.
+  - The input-keyed what-if cache is bounded (64 entries).
+  - Measured with `requirements.txt` only: peak memory 468 MB, health check 2.2 s, first page 14.6 s, 0 external requests.
+- **CI:** `.github/workflows/ci.yml` runs on Ubuntu with Python 3.12 and needs no secrets. Two jobs:
+  - lint + the full test suite on the dev set;
+  - a smoke job on `requirements.txt` only that renders every page in both modes.
+- **Docs:**
+  - `docs/DEPLOY.md`: the Cloud deploy guide;
+  - `docs/DEMO_SCRIPT.md`: a timed 8-minute demo for three presenters, with a checklist and plan B;
+  - `docs/VIVA_NOTES.md`: rewritten as a final Q&A sheet by topic;
+  - README: a top summary with headline results, a screenshot strip, a live-demo placeholder, the CI badge, runtime vs full install, fast vs full build, and team and course details.
+- **Small fixes:**
+  - India page: a setup card is also shown when `india_model_names.json` is missing.
+  - Build-time hints are updated (26 / 105 min).
