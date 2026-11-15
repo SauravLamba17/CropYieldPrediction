@@ -44,7 +44,7 @@ Measured in the Phase 4 session: the real repo, then a fresh `git clone` with a 
 
 **Ablation (random forest, CV RMSE):** base 5.886 → + target encoding 6.053, **+ lags 5.144**, + trend 5.806, all 5.119; hybrid 6.062; lookup 5.967. Lags are the group that matters (−0.74).
 
-**Verdict:** ML beats the lookup under the one-year-ahead assumption (CV 5.12 vs 5.97, test 6.85 vs 7.81, better for 48 of 54 crops and 26 of 30 states). But repeating last year's yield already scores 6.95. In the strict variant the model (9.65) is worse than the lookup. On the 51 test rows with no earlier crop × state record it is slightly worse too (log RMSE 1.070 vs 0.971); for unseen pairs it is better (0.696 vs 0.951; 147 rows).
+**Verdict:** ML beats the lookup under the one-year-ahead assumption (CV 5.12 vs 5.97, test 6.85 vs 7.81, better for 48 of 54 crops and 26 of 30 states). But repeating last year's yield already scores 6.95. In the strict variant the model (9.65) is worse than the lookup. On the 51 test rows with no earlier crop × state record it is slightly worse too (RMSE 1.070 vs 0.971 t/ha); for unseen pairs it is better (0.696 vs 0.951; 147 rows).
 
 **Explainability (selected model):** permutation (30 repeats, test years): 3-year rolling mean 7.07, last year's yield 2.79, crop 0.378, state 0.038, log area 0.021. Mean |SHAP| (1,000 test rows): rolling mean 70.6 %, crop 9.9 %, last year 8.7 %, state 7.0 %, season 1.1 %. Spearman ρ 0.78. Year and pesticide have zero permutation importance (every test year is outside the training range).
 
