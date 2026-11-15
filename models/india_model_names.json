@@ -1,4 +1,18 @@
 {
-  "best_overall": "random_forest",
-  "best_tree": "random_forest"
+  "best_overall": "random_forest + all",
+  "best_tree": "random_forest + all",
+  "feature_set": "all",
+  "input_columns": [
+    "Annual_Rainfall",
+    "Fertilizer_per_ha",
+    "Pesticide_per_ha",
+    "log_Area",
+    "Crop",
+    "Season",
+    "State",
+    "Crop_Year",
+    "lag1_yield",
+    "rolling3_yield",
+    "history_years"
+  ]
 }

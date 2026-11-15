@@ -1,0 +1,12 @@
+model,feature,importance_mean,importance_std,n_repeats
+random_forest + all,rolling3_yield,7.070933036579714,0.1562452087094405,30
+random_forest + all,lag1_yield,2.7896766720076593,0.07776674925263626,30
+random_forest + all,Crop,0.3784225266264766,0.028360012082130143,30
+random_forest + all,State,0.03832656851081285,0.012563020607311176,30
+random_forest + all,log_Area,0.02046908924501706,0.015747080296854017,30
+random_forest + all,Annual_Rainfall,0.01445736087305279,0.013496384964247493,30
+random_forest + all,Fertilizer_per_ha,0.009084658828419941,0.011186624568386368,30
+random_forest + all,Season,0.005894977272315257,0.003669566784176765,30
+random_forest + all,Pesticide_per_ha,0.0,0.0,30
+random_forest + all,Crop_Year,0.0,0.0,30
+random_forest + all,history_years,-0.0009581828252055816,0.0009359742465712264,30

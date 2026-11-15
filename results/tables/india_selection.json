@@ -1,0 +1,19 @@
+{
+  "selected": "random_forest + all",
+  "best_ml_by_cv": "random_forest + all",
+  "best_ml_cv_rmse": 5.119249077904972,
+  "lookup_cv_rmse": 5.967429934608225,
+  "beats_lookup_cv": true,
+  "best_family_all_features": "random_forest",
+  "search_iterations": 20,
+  "outer_folds": 5,
+  "permutation_vs_shap_spearman": 0.7836011218345129,
+  "model_file_mb": 10.06,
+  "forecasting_assumption": "predicting year t, actual yields up to t-1 are known",
+  "timings_s": {
+    "cv_families_s": 5890.2,
+    "cv_ablation_s": 2016.1,
+    "final_fit_and_test_s": 1177.5,
+    "explainability_s": 89.1
+  }
+}

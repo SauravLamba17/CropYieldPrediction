@@ -48,6 +48,7 @@ PIPELINE_OUTPUTS = [
 ]
 INDIA_OUTPUTS = [
     config.TABLES_DIR / "india_test.csv",
+    config.TABLES_DIR / "india_selection.json",  # Phase 4: re-run when only older tables exist
     config.MODELS_DIR / "india_best_overall.joblib",
 ]
 NOTEBOOKS = ["01_eda", "02_diagnostics", "03_explain", "04_india"]

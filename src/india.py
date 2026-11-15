@@ -14,7 +14,6 @@ import json
 import logging
 from collections.abc import Iterator
 
-import joblib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -28,7 +27,6 @@ from src.evaluate import cross_validate_models, holdout_metrics
 from src.models import (
     PENALISED_LINEAR,
     chosen_alpha,
-    deployable,
     get_linear_models,
     get_nonlinear_models,
 )
@@ -294,7 +292,6 @@ def main() -> None:
     best_tree = ranked[TREE_MODEL_NAMES].idxmin()
 
     # --- The ONLY place the India test years are used (main suite + ablation). ---
-    X_test, _ = india_xy(test)
     test_results, fitted = fit_and_test(models, train, test)
     # Saved in CV order (the selection criterion), like the Kaggle test_results.csv.
     test_results = test_results.set_index("model").loc[cv["model"]].reset_index()
@@ -314,21 +311,18 @@ def main() -> None:
     ranges.to_csv(config.TABLES_DIR / "india_feature_ranges.csv", index=False)
     print("\nTrain vs test ranges:\n" + ranges.round(4).to_string(index=False))
 
-    crops = per_crop_rmse(test, fitted[best_overall].predict(X_test))
-    crops.to_csv(config.TABLES_DIR / "india_per_crop_rmse.csv", index=False)
-    print(f"\nPer-crop test RMSE for {best_overall}:\n" + crops.round(3).to_string(index=False))
-
     params = {name: fitted[name].best_params_ for name in TREE_MODEL_NAMES}
     params.update(
         {name: {"alpha": float(chosen_alpha(fitted[name]))} for name in PENALISED_LINEAR}
     )
     params = json.loads(json.dumps(params, default=float))
-    (config.TABLES_DIR / "india_best_params.json").write_text(json.dumps(params, indent=2))
-    # Only the model notebook 04 loads; best_tree is recorded by name (it is usually the same).
-    joblib.dump(deployable(fitted[best_overall]), config.MODELS_DIR / "india_best_overall.joblib")
-    (config.MODELS_DIR / "india_model_names.json").write_text(
-        json.dumps({"best_overall": best_overall, "best_tree": best_tree}, indent=2)
-    )
+
+    # Phase 4: time-safe features, new candidates, ablation, selection by CV against the
+    # look-up, error analysis and explainability. It saves the selected (deployed) model,
+    # india_model_names.json, india_best_params.json and the per-crop table.
+    from src.india_analysis import run as run_extended  # local: it imports this module
+
+    run_extended(train, test, cv, test_results, fitted, params)
 
     ordered = test_results.iloc[::-1]  # CV ranking, best at the top of the horizontal bars
     fig, ax = plt.subplots(figsize=(8, 5))
@@ -342,7 +336,7 @@ def main() -> None:
     )
     save_figure(fig, "india_model_comparison")
     plt.close(fig)
-    logger.info("Done. best overall=%s, best tree=%s", best_overall, best_tree)
+    logger.info("Done. original suite: best overall=%s, best tree=%s", best_overall, best_tree)
 
 
 if __name__ == "__main__":

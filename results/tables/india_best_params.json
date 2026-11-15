@@ -25,5 +25,67 @@
   },
   "polynomial_deg3": {
     "alpha": 8.286427728546842
+  },
+  "random_forest + all": {
+    "regressor__encode__smoothing": 30,
+    "regressor__model__max_depth": 10,
+    "regressor__model__max_features": 1.0,
+    "regressor__model__min_samples_leaf": 8,
+    "regressor__model__n_estimators": 234
+  },
+  "gradient_boost + all": {
+    "regressor__encode__smoothing": 100,
+    "regressor__model__colsample_bytree": 0.8159364365206693,
+    "regressor__model__learning_rate": 0.01837336676184502,
+    "regressor__model__max_depth": 6,
+    "regressor__model__min_child_weight": 7,
+    "regressor__model__n_estimators": 898,
+    "regressor__model__reg_lambda": 2.452278926548298,
+    "regressor__model__subsample": 0.9521871356061031
+  },
+  "lightgbm + all": {
+    "regressor__encode__smoothing": 30,
+    "regressor__model__colsample_bytree": 0.6431565707973218,
+    "regressor__model__learning_rate": 0.010987283063579408,
+    "regressor__model__min_child_samples": 43,
+    "regressor__model__n_estimators": 440,
+    "regressor__model__num_leaves": 59,
+    "regressor__model__reg_lambda": 1.338292807656262,
+    "regressor__model__subsample": 0.878206434570451
+  },
+  "hist_gradient_boost + all": {
+    "regressor__encode__smoothing": 10,
+    "regressor__model__l2_regularization": 0.068706142826133,
+    "regressor__model__learning_rate": 0.0271747096730583,
+    "regressor__model__max_features": 0.6571467271687763,
+    "regressor__model__max_iter": 330,
+    "regressor__model__max_leaf_nodes": 29,
+    "regressor__model__min_samples_leaf": 6
+  },
+  "random_forest + target_encoding": {
+    "regressor__encode__smoothing": 1,
+    "regressor__model__max_depth": 16,
+    "regressor__model__max_features": 0.5,
+    "regressor__model__min_samples_leaf": 8,
+    "regressor__model__n_estimators": 587
+  },
+  "random_forest + lags": {
+    "regressor__model__max_depth": null,
+    "regressor__model__max_features": 0.8,
+    "regressor__model__min_samples_leaf": 5,
+    "regressor__model__n_estimators": 506
+  },
+  "random_forest + trend": {
+    "regressor__model__max_depth": 16,
+    "regressor__model__max_features": 1.0,
+    "regressor__model__min_samples_leaf": 1,
+    "regressor__model__n_estimators": 513
+  },
+  "hybrid: lookup + random_forest (all)": {
+    "regressor__estimator__encode__smoothing": 30,
+    "regressor__estimator__model__max_depth": null,
+    "regressor__estimator__model__max_features": 0.3,
+    "regressor__estimator__model__min_samples_leaf": 12,
+    "regressor__estimator__model__n_estimators": 513
   }
 }
