@@ -92,18 +92,19 @@ india_test = data.load_table("india_test")
 lookups = data.load_table("india_reference_baselines")
 shap_shares = data.load_table("india_shap_shares")
 per_crop = data.load_table("india_per_crop_rmse")
-if india_test is None or lookups is None or shap_shares is None or per_crop is None:
+names_file = config.MODELS_DIR / "india_model_names.json"
+if any(t is None for t in (india_test, lookups, shap_shares, per_crop)) or not names_file.exists():
     setup_card(
         "Real-world validation: not built on this computer yet",
         "This page checks every model on real Indian state crop records (1997–2020). To build it: "
         '1. download <code>crop_yield.csv</code> from <a href="https://data.mendeley.com/datasets/ncw2vbcgnk" '
         'target="_blank">Mendeley Data</a>; 2. save it as <code>data/raw/india/crop_yield.csv</code>; '
-        "3. run the command below (about 50 minutes). The other pages work without it.",
+        "3. run the command below (about 105 minutes). The other pages work without it.",
         command="python -m src.india",
     )
     st.stop()
 
-india_names = json.loads((config.MODELS_DIR / "india_model_names.json").read_text())
+india_names = json.loads(names_file.read_text())
 selected = india_names["best_overall"]
 lookup = lookups[lookups["predictor"].str.contains("state")].iloc[0]
 crop = shap_shares.set_index("feature").loc[config.INDIA_CROP, "share"]

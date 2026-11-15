@@ -50,11 +50,21 @@ if missing:
     setup_card(
         "Setup needed: the trained models are missing",
         "Run this once from the project folder (or double-click <code>start.bat</code> on "
-        "Windows). It trains the models in about 13 minutes and then opens this dashboard. "
+        "Windows). It trains the models in about 26 minutes and then opens this dashboard. "
         "Missing: " + ", ".join(f"<code>{m}</code>" for m in missing),
         command="python run.py",
     )
     st.stop()
+
+absent = data.missing_tables()
+if absent:  # health check: the pages still run, each hiding what it cannot show
+    setup_card(
+        f"Health check: {len(absent)} results table{'s are' if len(absent) > 1 else ' is'} missing",
+        "The parts of the app that read them are hidden until they are rebuilt. Missing: "
+        + ", ".join(f"<code>{m}</code>" for m in absent)
+        + ". Rebuild with: "
+        + " and ".join(f"<code>{c}</code>" for c in data.rebuild_commands(absent)),
+    )
 
 data.init_state()
 page.run()

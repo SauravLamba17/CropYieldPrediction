@@ -124,6 +124,30 @@ def split() -> tuple[pd.DataFrame, pd.DataFrame]:
     return load_split()
 
 
+# Every committed results file the pages read (results/tables/). A missing one never raises:
+# its page shows a setup card instead, and app.py lists all missing ones in a health card.
+APP_TABLES = [
+    "conformal.json", "conformal_groups.csv", "cv_all_models.csv", "explain_coefficients.csv",
+    "explain_permutation.csv", "explain_shap.csv", "feature_signal.csv",
+    "importance_agreement.csv", "test_results.csv", "tie_check.csv", "india_test.csv",
+    "india_reference_baselines.csv", "india_shap_shares.csv", "india_per_crop_rmse.csv",
+    "india_selection.json", "india_leaderboard.csv", "india_feature_ablation.csv",
+    "india_error_by_group.csv", "india_error_segments.csv", "india_explain_permutation.csv",
+    "india_explain_shap.csv", "india_cv.csv", "india_ablation.csv",
+]
+REBUILD = {"india": "python -m src.india", "tie": "python -m src.tie_check"}  # else the pipeline
+
+
+def missing_tables() -> list[str]:
+    return [name for name in APP_TABLES if not (config.TABLES_DIR / name).exists()]
+
+
+def rebuild_commands(names: list[str]) -> list[str]:
+    """The commands that rebuild these tables, in a stable order."""
+    commands = {REBUILD.get(n.split("_")[0], "python run.py build --fast") for n in names}
+    return sorted(commands)
+
+
 @st.cache_data
 def load_table(name: str) -> pd.DataFrame | None:
     """A saved results table, or None if it has not been generated."""
@@ -207,7 +231,7 @@ def response_curve(feature: str) -> pd.DataFrame:
     return pd.DataFrame({"x": grid, "y": _predict_sweep(sample, feature, grid)})
 
 
-@st.cache_data
+@st.cache_data(max_entries=64)  # keyed on every input value: bounded, like heatmap()
 def whatif_curve(feature: str, inputs: tuple) -> pd.DataFrame:
     """The prediction for this one field as `feature` sweeps; other inputs held as set."""
     row = pd.DataFrame([dict(zip(config.FEATURES, inputs))])
