@@ -33,6 +33,8 @@ logger = logging.getLogger(__name__)
 
 LINEAR_MODEL_NAMES = ["simple_lr", "multiple_lr", "polynomial", "ridge", "lasso"]
 TREE_MODEL_NAMES = ["random_forest", "gradient_boost"]
+# Phase 4 comparison rows: reported next to the suite, never part of the model selection.
+EXTRA_MODEL_NAMES = ("lightgbm", "hist_gradient_boost")
 
 
 def all_models(simple_feature: str) -> dict[str, RegressorMixin]:
@@ -199,6 +201,37 @@ def save_conformal(
     return result
 
 
+def run_extra_models(train_df: pd.DataFrame, test_df: pd.DataFrame, cv_all: pd.DataFrame) -> pd.DataFrame:
+    """LightGBM and HistGradientBoosting on the same 5 folds, with the same nested search budget.
+
+    Saved to kaggle_extra_models.csv only: cv_all_models.csv, test_results.csv and the
+    deployed model are not touched. `beats_deployed_by_1sd` flags a CV RMSE more than one
+    CV std (of the deployed model) below the deployed model's; switching is a manual decision.
+    """
+    X, y = split_xy(train_df)
+    X_test, y_test = split_xy(test_df)
+    models = get_nonlinear_models(names=EXTRA_MODEL_NAMES)
+    cv = cross_validate_models(models, X, y, n_jobs=None)
+    rows = []
+    for name, model in models.items():
+        fitted = clone(model).fit(X, y)
+        rows.append(
+            {
+                "model": name,
+                **{f"test_{k}": v for k, v in holdout_metrics(y_test, fitted.predict(X_test)).items()},
+                "train_rmse": root_mean_squared_error(y, fitted.predict(X)),
+            }
+        )
+    deployed = cv_all.set_index("model").loc[best_names(cv_all)[1]]
+    table = cv[["model", "rmse_mean", "rmse_std", "mae_mean", "r2_mean", "fit_time_s"]].merge(
+        pd.DataFrame(rows), on="model"
+    )
+    table["deployed_cv_rmse"] = deployed["rmse_mean"]
+    table["beats_deployed_by_1sd"] = table["rmse_mean"] < deployed["rmse_mean"] - deployed["rmse_std"]
+    table.to_csv(config.TABLES_DIR / "kaggle_extra_models.csv", index=False)
+    return table
+
+
 def write_submission(model: RegressorMixin) -> None:
     """Predict the unlabelled competition test file in sample_submission format (NOT uploaded)."""
     competition_test = load_kaggle_competition_test()
@@ -260,6 +293,8 @@ def main() -> None:
         fitted[best_overall], best_overall, fitted[best_tree], best_tree, models, train_df, test_df
     )
     write_submission(fitted[best_overall])
+    extra = run_extra_models(train_df, test_df, cv_all)
+    print("\nExtra comparison rows (not used for selection):\n" + extra.round(4).to_string(index=False))
     logger.info("Done.")
 
 
