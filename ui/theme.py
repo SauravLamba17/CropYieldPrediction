@@ -173,7 +173,10 @@ def _variables() -> str:
 
 CARD_KEY_PREFIX = "card-"  # every card is a st.container(key="card-...")
 SELECTOR_KEYS = ["india_table", "drivers_view", "explain_view", "preset", "mode", "board_model"]
-DEFAULT_LIGHT_FLAG = "cyp-default-light-v1"  # localStorage marker: default applied once
+DEFAULT_LIGHT_FLAG = "cyp-default-light-v2"  # localStorage marker: default applied once
+# URL path of every page (Streamlit uses the file name; the default page is ""). Streamlit keeps
+# the theme per path, so the light default is written for each. tests/test_theme.py checks app.py.
+PAGE_PATHS = ("", "predict", "whatif", "models", "explain", "explorer", "india")
 
 
 def _sel(inner: str) -> str:
@@ -397,23 +400,31 @@ footer, [data-testid="stDecoration"] {{ display: none !important; }}
 </style>
 """
 
-# Default to light the first time a browser opens the app (projector-safe). Streamlit
-# keeps the viewer's choice in localStorage; with both [theme.light] and [theme.dark]
-# defined it otherwise follows the OS. The marker makes this a one-time default, so a
-# viewer who later picks Dark or System in the menu keeps that choice.
+# Default to light the first time a browser opens the app (projector-safe). Streamlit keeps
+# the viewer's choice in localStorage under "stActiveTheme-<path of the first page loaded>-v2";
+# with both [theme.light] and [theme.dark] defined it otherwise follows the OS. So on the first
+# visit every page path gets Light (unless it already holds an explicit Light or Dark), whatever
+# page is opened first or reloaded later. The marker makes this a one-time default: a viewer
+# who later picks Dark or System in the ⋮ menu keeps that choice.
 DEFAULT_LIGHT_JS = f"""
 <script>
 (() => {{
-  const flag = "{DEFAULT_LIGHT_FLAG}";
+  const flag = "{DEFAULT_LIGHT_FLAG}", pages = {list(PAGE_PATHS)};
   try {{
-    if (window.parent.localStorage.getItem(flag)) return;
-    window.parent.localStorage.setItem(flag, "1");
-    const key = Object.keys(window.parent.localStorage).find(k => k.startsWith("stActiveTheme-"))
-      || "stActiveTheme-/-v2";
-    if (window.parent.localStorage.getItem(key) !== JSON.stringify("Light")) {{
-      window.parent.localStorage.setItem(key, JSON.stringify("Light"));
-      window.parent.location.reload();
-    }}
+    const w = document.querySelector('[data-testid="stApp"]') ? window : window.parent;
+    const store = w.localStorage;
+    if (store.getItem(flag)) return;
+    store.setItem(flag, "1");
+    const path = w.location.pathname.replace(/\\/+$/, "");   // "/~/+/whatif", "" for "/"
+    const i = path.lastIndexOf("/"), last = path.slice(i + 1);
+    const base = last && pages.includes(last) ? path.slice(0, i + 1) : path + "/";
+    const current = "stActiveTheme-" + w.location.pathname + "-v2";
+    const keys = new Set([current, ...pages.map(p => "stActiveTheme-" + base + p + "-v2")]);
+    const light = JSON.stringify("Light"), dark = JSON.stringify("Dark");
+    const explicit = v => v === light || v === dark;
+    const before = store.getItem(current);
+    for (const k of keys) if (!explicit(store.getItem(k))) store.setItem(k, light);
+    if (!explicit(before)) w.location.reload();   // this page was following the OS
   }} catch (e) {{}}
 }})();
 </script>
