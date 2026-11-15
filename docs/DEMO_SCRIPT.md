@@ -21,7 +21,7 @@ Every number below is what the app shows from the committed tables (`results/tab
   If a page takes much longer than 10 s, switch to plan B.
 - [ ] **Fallback running:** on the presenting laptop, double-click `start.bat` (or `python run.py app`) so the local app is already open on `http://localhost:8501` in a second tab.
 - [ ] **Projector:** display at **1366 × 768 or 1280 × 720**, browser zoom 100 %, the browser in full screen (F11). Check the header and the top cards fit without scrolling sideways.
-- [ ] **Light mode:** ⋮ (top right) → Settings → Light. Private/incognito windows start in light.
+- [ ] **Light mode:** ⋮ (top right) → **Light**. A browser opening the app for the first time starts in light on every page, even on a dark-mode laptop.
 - [ ] Predict reset: click **Reset to defaults** so the Typical field shows **6.52 t/ha**.
 - [ ] Phones on silent; one person keeps the timer.
 

@@ -95,6 +95,9 @@ The look-up plus a random forest trained on the look-up's residuals, both time-s
 **Q: How is the app deployed?**
 On Streamlit Community Cloud (https://cropyieldprediction-team.streamlit.app/) from the public GitHub repo, Python 3.12. It installs only `requirements.txt`: the app runtime, with CPU-only xgboost on Linux. That is 782 MB, down from 1,097 MB. Nothing is trained on the server; it reads the committed models and tables.
 
+**Q: Does the app send data anywhere?**
+Locally the app makes no outside requests. On Streamlit Community Cloud, the platform still sends Streamlit's own usage statistics, which the repo can't switch off. The fonts are bundled in the repo and the app needs no secrets or API keys.
+
 **Q: How do you know it works on Linux?**
 GitHub Actions CI on ubuntu-latest, Python 3.12, with no secrets. One job runs ruff and the whole test suite (raw-data tests skip, as on a fresh clone). A smoke job installs only `requirements.txt` and renders every page in both modes.
 

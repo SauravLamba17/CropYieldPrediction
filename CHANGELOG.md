@@ -112,3 +112,14 @@ See `PROGRESS.md` (Phase 6 section) for the measured results.
   - the live URL replaces the live-demo placeholder in README, DEPLOY.md, DEMO_SCRIPT.md and VIVA_NOTES.md, with an "Open the live app" link at the top of the README;
   - DEMO_SCRIPT has the wake-up steps and measured live timings;
   - PROGRESS has the Phase 6 results, the showcase-ready checklist and the known limitations.
+
+## Phase 7–8 — final live re-check and fixes
+
+See `PROGRESS.md` (Phase 7–8 section) for the measured results.
+
+- **Narrow screens:** the sidebar is no longer hidden, so below 768 px the "»" button opens the page navigation.
+- **Light default on every page:** the first visit sets Light for all 7 page paths, so direct URLs and reloads open light on a dark-mode computer; a later ⋮ choice is kept.
+- **Report buttons:** below 1200 px the two download buttons get their own row, so "Download CSV" / "Download PDF" never truncate (checked 600–1920 px).
+- **"0.00", not "−0.00",** for factors that do not change in the A vs B bars (and anywhere `plain.signed` is used).
+- **`tests/ui_check.py`:** a headless-browser page check, now including ellipsis-truncated text in wrapper DIVs; 142 of 142 checks pass.
+- **Docs:** usage statistics: "Locally the app makes no outside requests. On Streamlit Community Cloud, the platform still sends Streamlit's own usage statistics, which the repo can't switch off." Theme switch: "⋮ → Light / Dark" (there is no Settings step).

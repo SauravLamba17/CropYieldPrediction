@@ -1,4 +1,4 @@
-# PROGRESS — Phase 0 audit and showcase plan, Phase 1–6 results
+# PROGRESS — Phase 0 audit and showcase plan, Phase 1–8 results
 
 CSL236 AIML course project, Team 2: crop yield prediction (t/ha).
 Audit date: 2026-11-14. Commit audited: `511cdfe`.
@@ -7,6 +7,31 @@ Every number in this file was produced in this session by a fresh `git clone` of
 
 
 > **Screenshots:** since Phase 3 the per-phase captures in `screenshots/` (Phase 0 audit, `phase1/`, `phase2/`, `phase3/`) are git-ignored and local only; they were also removed from the unpushed history (with approval). A curated set is committed in `docs/screenshots/` (`p2_*`, `p3_*`). Paths below that start with `screenshots/` refer to the local folder.
+
+---
+
+## Phase 7–8 results (2026-11-15/16): final live re-check and fixes
+
+**Phase 7** re-checked the live app at `06c47b4` without changing anything: CI green on both jobs, 32 of 32 scripted page checks pass, the KPIs match the tables and the CSV report names `06c47b4`. It found five issues, fixed in Phase 8 (local commits, not yet pushed):
+
+| # | Issue found in Phase 7 | Fix in Phase 8 |
+|---|---|---|
+| 1 | Usage statistics still sent on Cloud (app frame → `webhooks.fivetran.com`, `data.streamlit.io`), so the docs overstated `06c47b4` | Re-measured after the owner rebooted the app: still sent (one Predict load: `data.streamlit.io` 1, `webhooks.fivetran.com` 9). `gatherUsageStats = false` stays (it works locally). The docs now say: "Locally the app makes no outside requests. On Streamlit Community Cloud, the platform still sends Streamlit's own usage statistics, which the repo can't switch off." |
+| 2 | Below 768 px, "»" opened an invisible sidebar: no navigation | `ui/theme.py` no longer hides the sidebar (wide screens have none; narrow screens get the navigation in it) |
+| 3 | The light default only applied to the first page path, so a direct `/whatif` URL opened dark on a dark-mode computer | The default writes Light for all 7 page paths on the first visit (flag `cyp-default-light-v2`) and keeps an explicit Light/Dark choice |
+| 4 | "Download CSV" / "Download PDF" truncated to "Download…" at 758 px | Below 1200 px the report card puts the title on its own row and the two buttons share the next |
+| 5 | Docs said "⋮ → Settings → Light" | Now "⋮ → Light" (DEMO_SCRIPT, DEPLOY) |
+| — | Nit: "−0.00" in the A vs B bars | `plain.signed()` prints "0.00" for anything that rounds to zero; the bar labels use it |
+
+**Phase 8 verification (local app on port 8611):**
+- `python run.py check`: ruff clean, **179 passed** (5 new tests: sidebar never hidden, light default covers every page path, "0.00" formatting twice, and the truncation rule).
+- `tests/ui_check.py` (new, headless Chrome): flags error boxes, sideways scroll, off-screen and clipped text, **ellipsis-truncated text in any element, wrapper DIVs included**, undrawn charts, the wrong theme and unreachable navigation. Run at 1366, 1024, 768, 758 and 600 px × light/dark × 7 pages × Simple/Technical, plus `/whatif` and `/india` opened with empty storage on a dark-mode system: **142 of 142 pass**. On the live `06c47b4` build at 758 px it flags both cut-off labels, so this class of bug is now caught.
+- Resizing across the boundary (758 → 768 → 769 → 1366 → 767 → 600 → 768 → 1024): all 7 pages reachable at every step (top links from 768 px, the "»" sidebar below).
+- Report buttons: full labels at every width from 600 to 1920 px in 20 px steps, plus 758, 767, 768, 799, 800, 1023, 1024, 1199, 1200, 1365 and 1366 (label box 93/93 px and 91/91 px).
+- A viewer's ⋮ → Dark on `/india` survives a reload.
+- Built-in browser: all 7 pages reached by clicking the navigation at 1366, 1024, 768, 758 and 600 px in light and dark, each clean.
+
+Screenshots: `screenshots/phase8/` (git-ignored).
 
 ---
 
@@ -65,7 +90,7 @@ The app was already awake, so the wake-from-sleep time was not measured.
   - `share.streamlit.io` and `www.streamlitstatus.com` / `*.statuspage.io`: Cloud UI and status;
   - `cdn.segment.com`, `cdn.heapanalytics.com`, `sdk.us.heap-api.com`, `www.googletagmanager.com`, `www.google-analytics.com`, `stats.g.doubleclick.net`: Cloud analytics;
   - `avatars.githubusercontent.com`: the owner's avatar in the "Created by" badge.
-- *App iframe:* `data.streamlit.io` (1 request, `metrics.json`) and `webhooks.fivetran.com` (224 requests). These are Streamlit's built-in usage statistics, on by default (`browser.gatherUsageStats`). Locally, `run.py` turned them off; `.streamlit/config.toml` did not. **Fixed after the check (approved):** `.streamlit/config.toml` now sets `gatherUsageStats = false` under `[browser]`, so the app itself makes no outside requests and only Cloud's wrapper does. This takes effect on Cloud after the next push; it has not been re-measured live.
+- *App iframe:* `data.streamlit.io` (1 request, `metrics.json`) and `webhooks.fivetran.com` (224 requests). These are Streamlit's built-in usage statistics, on by default (`browser.gatherUsageStats`). Locally, `run.py` turned them off; `.streamlit/config.toml` did not. **Fixed after the check (approved):** `.streamlit/config.toml` now sets `gatherUsageStats = false` under `[browser]`, which works locally. **Re-measured in Phases 7 and 8: Cloud still sends them** (see the Phase 8 section).
 
 **Other Phase 6 changes:**
 - CI actions bumped:
@@ -85,7 +110,7 @@ The app was already awake, so the wake-from-sleep time was not measured.
 5. **Tie-check p-values are optimistic.** There are only 5 folds and they share training rows; the Wilcoxon floor is 0.0625.
 6. **The full rebuild takes 2 h 10 min** (`--fast`: 33 min 35 s).
 7. **Free-tier Cloud sleeps** after 12 hours without traffic. Wake time is unmeasured, so wake the app 10 min before presenting.
-8. **Cloud's wrapper page contacts outside hosts** (Cloud analytics and status). The app itself does not, now that Streamlit's usage statistics are off; this has not been re-measured live since the change.
+8. **Outside requests on Cloud.** Locally the app makes no outside requests. On Streamlit Community Cloud, the platform still sends Streamlit's own usage statistics, which the repo can't switch off. Cloud's wrapper page also contacts its analytics and status hosts.
 9. **Memory and cold start were measured on Windows** (Python 3.14); Cloud runs Linux with Python 3.12.
 10. **Associations, not causes:** the data is observational.
 

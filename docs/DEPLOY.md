@@ -2,9 +2,12 @@
 
 **Live app:** https://cropyieldprediction-team.streamlit.app/ (deployed from `main`, `app.py`, Python 3.12; verified end to end in Phase 6, see `PROGRESS.md`).
 
-The app runs on Streamlit Community Cloud straight from the public GitHub repository. Nothing is trained on the server: it reads the committed model files (`models/`), results tables (`results/tables/`) and the processed splits (`data/processed/`). No secrets and no API keys. **The app itself makes no outside requests**, locally or on Cloud. The fonts are bundled in `static/fonts/`, and Streamlit's usage statistics are switched off in `.streamlit/config.toml` (`[browser] gatherUsageStats = false`).
+The app runs on Streamlit Community Cloud straight from the public GitHub repository. Nothing is trained on the server: it reads the committed model files (`models/`), results tables (`results/tables/`) and the processed splits (`data/processed/`). No secrets and no API keys. The fonts are bundled in `static/fonts/`, and Streamlit's usage statistics are switched off in `.streamlit/config.toml` (`[browser] gatherUsageStats = false`). **Locally the app makes no outside requests. On Streamlit Community Cloud, the platform still sends Streamlit's own usage statistics, which the repo can't switch off.**
 
-On Cloud, the only outside requests come from **Streamlit Cloud's wrapper page** around the app: its analytics, its status banner and the owner's avatar. Phase 6 measured these (see `PROGRESS.md`). Before this setting, the app frame also contacted `data.streamlit.io` and `webhooks.fivetran.com` for Streamlit's default usage statistics.
+On Cloud, two kinds of outside requests were measured (see `PROGRESS.md`, Phases 6–8):
+
+- **Streamlit Cloud's wrapper page** around the app: its analytics, its status banner and the owner's avatar.
+- **The app frame**, served by Cloud: Streamlit's usage statistics to `data.streamlit.io` and `webhooks.fivetran.com`. They were still sent after `gatherUsageStats = false` was pushed (06c47b4) and after a reboot, so on Cloud the repo's `config.toml` does not switch them off. Run locally, the same app sends nothing.
 
 Facts about Community Cloud below are from the Streamlit docs (docs.streamlit.io → Deploy → Streamlit Community Cloud) as read on 2026-11-15; check them again if a screen looks different.
 
@@ -49,8 +52,8 @@ Open the URL in a private window (no cached theme) and check, in this order:
 - [ ] **Explain**: the method-agreement card (ρ 0.89 / 0.73 / 0.74) and the soil pH paradox card.
 - [ ] **Data explorer**: charts draw. The harvest-month card shows "This chart needs the raw Kaggle file" on Cloud, because the raw CSV is not in git; that is expected.
 - [ ] **India**: Simple shows 6.85 vs 7.81 and the "last year's yield 6.95" note; Technical shows the leaderboard, the ablation chart, the 10 worst crops and the tie-check card.
-- [ ] Switch **Simple ↔ Technical** on two pages, and **Light ↔ Dark** from the ⋮ menu (top right) → Settings.
-- [ ] Narrow the browser window to about 768 px: nothing overlaps.
+- [ ] Switch **Simple ↔ Technical** on two pages, and **Light ↔ Dark** from the ⋮ menu (top right) → **Light** / **Dark**.
+- [ ] Narrow the browser window below 768 px: nothing overlaps, and the **»** button (top left) opens the page navigation.
 
 Measured locally with only `requirements.txt` installed (the same set Cloud installs): the server answered its health check **2.2 s** after launch and the first page was fully drawn after **14.6 s** (cold start, measured with a headless browser that was itself starting); peak memory was **468 MB** (resident set of the server process; Windows peak working set 498 MB) after visiting all 7 pages in both modes and both themes, with 0 requests to any outside host. The docs give Community Cloud apps between 690 MB and 2.7 GB of memory, so the app fits, but avoid opening it in many tabs at once on the free tier.
 

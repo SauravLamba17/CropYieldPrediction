@@ -9,8 +9,8 @@ enableStaticServing = true            # serves static/ (the bundled fonts)
 fileWatcherType = "none"
 
 [browser]
-# No usage statistics to Streamlit (data.streamlit.io / webhooks.fivetran.com): the app itself
-# makes no outside requests, locally or on Streamlit Cloud.
+# No usage statistics to Streamlit (data.streamlit.io / webhooks.fivetran.com). Works locally;
+# Streamlit Community Cloud still sends them (measured, Phases 7-8); the repo can't switch that off.
 gatherUsageStats = false
 
 [client]
