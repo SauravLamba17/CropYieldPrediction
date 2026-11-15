@@ -1,6 +1,13 @@
 # Deploying to Streamlit Community Cloud
 
-The app runs on Streamlit Community Cloud straight from the public GitHub repository. Nothing is trained on the server: it reads the committed model files (`models/`), results tables (`results/tables/`) and the processed splits (`data/processed/`). No secrets, no API keys, no network access at runtime (the fonts are bundled in `static/fonts/`).
+**Live app:** https://cropyieldprediction-team.streamlit.app/ (deployed from `main`, `app.py`, Python 3.12; verified end to end in Phase 6, see `PROGRESS.md`).
+
+The app runs on Streamlit Community Cloud straight from the public GitHub repository. Nothing is trained on the server: it reads the committed model files (`models/`), results tables (`results/tables/`) and the processed splits (`data/processed/`). No secrets and no API keys. The app's own code makes no outside calls (the fonts are bundled in `static/fonts/`). On Cloud, two kinds of outside requests do happen:
+
+- The Cloud wrapper page around the app loads Streamlit's analytics and status scripts.
+- Streamlit's built-in usage statistics are on by default (`browser.gatherUsageStats`), so the app frame also contacts `data.streamlit.io` and `webhooks.fivetran.com`. Locally, `run.py` turns them off. To turn them off on Cloud too, set `gatherUsageStats = false` under `[browser]` in `.streamlit/config.toml`.
+
+Phase 6 measured both (see `PROGRESS.md`).
 
 Facts about Community Cloud below are from the Streamlit docs (docs.streamlit.io → Deploy → Streamlit Community Cloud) as read on 2026-11-15; check them again if a screen looks different.
 
@@ -31,7 +38,7 @@ Installing `requirements.txt` into a fresh venv took **5 min 04 s** on the devel
    - **Secrets:** leave empty. The app needs none.
    - Click **Save**.
 6. Click **Deploy**. The log panel shows the `pip install`; the first install takes several minutes, then the app opens.
-7. Copy the app URL into the README: replace `LIVE_DEMO_URL` (top of the README, under the CI badge) and commit.
+7. Put the app URL in the README (done: https://cropyieldprediction-team.streamlit.app/ is linked at the top, under the CI badge).
 
 ## After the deploy: what to check
 

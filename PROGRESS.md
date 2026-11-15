@@ -1,4 +1,4 @@
-# PROGRESS — Phase 0 audit and showcase plan, Phase 1–5 results
+# PROGRESS — Phase 0 audit and showcase plan, Phase 1–6 results
 
 CSL236 AIML course project, Team 2: crop yield prediction (t/ha).
 Audit date: 2026-11-14. Commit audited: `511cdfe`.
@@ -10,9 +10,90 @@ Every number in this file was produced in this session by a fresh `git clone` of
 
 ---
 
+## Phase 6 results (2026-11-15): live verification and close-out
+
+**Live app:** https://cropyieldprediction-team.streamlit.app/
+
+It is deployed from `main` with `app.py` and Python 3.12. The CSV report downloaded from it names commit `c2c421a`, so Cloud serves the latest pushed code. The checks were read-only: one headless-Chrome visit per combination, through the Cloud wrapper, scripting the app's same-origin iframe (`/~/+/`). No sign-in.
+
+### Showcase-ready checklist
+
+- [x] **Live app:** all 7 pages × 2 modes × 2 themes × 2 widths pass (56 of 56); KPIs match the committed tables; preset, CSV report, heatmap and A vs B work.
+- [x] **CI:** run #1 on `c2c421a` was green (both jobs). Actions bumped to Node 24 versions (`checkout@v7`, `setup-python@v7`); the next run should show no Node 20 warnings.
+- [x] **Demo script:** `docs/DEMO_SCRIPT.md`, with the live URL, wake-up steps and measured live timings.
+- [x] **Viva notes:** `docs/VIVA_NOTES.md`.
+- [x] **Fallback:** local `start.bat` (offline, same code and tables) plus `docs/screenshots/`.
+
+### Live check (2026-11-15, headless Chrome)
+
+| Page | Simple / Technical × light / dark × 1366 / 768 | Charts drawn | Notes |
+|---|---|---|---|
+| Overview | 8 / 8 pass | (KPI cards, no charts) | KPIs match the tables (below) |
+| Predict | 8 / 8 pass | 1/1 (Simple), 2/2 (Technical) | "Drought year": 6.52 → 5.99 t/ha; range 5.48–7.56 → 4.95–7.02; CSV report downloaded (904 bytes, prediction, range, model, top 5 SHAP factors) |
+| What-if | 8 / 8 pass | 4/4 | Heatmap drawn, best cell "Fertilizer 299.9 kg/ha with rainfall 1154.1 mm → 7.94 t/ha"; B fertilizer moved to 299.93 kg/ha → B − A from +0.00 to **+1.24 t/ha** |
+| Model comparison | 8 / 8 pass | 2/2, 3/3 | Tie-check card in Technical |
+| Explain | 8 / 8 pass | 4/4, 6/6 | Method agreement and pH paradox cards |
+| Data explorer | 8 / 8 pass | 6/6 | Harvest-month card shows its "needs the raw Kaggle file" note (expected on Cloud) |
+| India | 8 / 8 pass | 2/2, 4/4 | Tie wording present in all 8: Simple "statistically a tie", Technical "not distinguishable" from last year's yield |
+
+"Pass" means:
+- no traceback or error box;
+- every chart drawn;
+- the strict geometry check is clean: no sideways scroll, nothing off-screen or clipped, no header overlap, no button outside its card;
+- the theme applied: light `rgb(246, 244, 236)`, dark `rgb(18, 22, 17)`.
+
+All 56 screenshots are in `screenshots/phase6/` (git-ignored).
+
+**Overview KPIs: live vs the committed tables**
+
+| KPI | Live, Simple | Live, Technical | Committed tables |
+|---|---|---|---|
+| CV RMSE | 0.63 t/ha · ± 0.01 | 0.635 t/ha · ± 0.009 | `cv_all_models.csv`: 0.635 ± 0.009 |
+| Test RMSE | 0.65 t/ha | 0.646 t/ha | `test_results.csv`: 0.646 |
+| R² | 69 % | 0.690 | `test_results.csv`: 0.690 |
+| 90 % range | ± 1.04 t/ha, held 88.5 % | ± 1.04 t/ha, held 88.5 % | `conformal.json`: 1.0367, coverage 0.8854 |
+
+**Live timings (warm app, 1366 px):**
+- full page load through the wrapper: median **4.6 s** over 34 loads, range 3.5–10.8 s;
+- page switch through the top navigation: 0.8–1.1 s, Predict 2.3 s;
+- Simple → Technical: median 0.5 s, at most 1.3 s.
+
+The app was already awake, so the wake-from-sleep time was not measured.
+
+**Outside hosts contacted.** No font or script came from a CDN: 436 font requests went to the app's own host.
+- *Streamlit Cloud wrapper page:*
+  - `share.streamlit.io` and `www.streamlitstatus.com` / `*.statuspage.io`: Cloud UI and status;
+  - `cdn.segment.com`, `cdn.heapanalytics.com`, `sdk.us.heap-api.com`, `www.googletagmanager.com`, `www.google-analytics.com`, `stats.g.doubleclick.net`: Cloud analytics;
+  - `avatars.githubusercontent.com`: the owner's avatar in the "Created by" badge.
+- *App iframe:* `data.streamlit.io` (1 request, `metrics.json`) and `webhooks.fivetran.com` (224 requests). These are Streamlit's built-in usage statistics, on by default (`browser.gatherUsageStats`). Locally, `run.py` turns them off; `.streamlit/config.toml` does not. **Reported, not changed:** setting `gatherUsageStats = false` under `[browser]` would stop them, but it is a config change and needs your OK. The docs now describe this accurately (README, DEPLOY.md).
+
+**Other Phase 6 changes:**
+- CI actions bumped:
+  - `actions/checkout` v4 → v7 (latest v7.0.1);
+  - `actions/setup-python` v5 → v7 (latest v7.1.0).
+  - Both v7 `action.yml` files declare `node24`, per their GitHub releases and the tagged files.
+  - The `cache: pip` and `cache-dependency-path` inputs are unchanged.
+- The live URL now appears in README, DEPLOY, DEMO_SCRIPT and VIVA_NOTES.
+- `python run.py check` passes locally.
+
+### Known limitations (carried over)
+
+1. **Kaggle is synthetic-looking:** its rankings describe the data generator, not farms (Phase 0).
+2. **India inputs are coarse.** There are no soil measurements; rainfall is one figure per state; fertilizer and pesticide are national yearly figures. Units are mixed (t/ha, and bales/ha for four fibre crops).
+3. **The India headline is one-year-ahead.** It assumes last year's yield is known: 6.85 vs 7.81 for the look-up. With only 1997–2015 known, the model scores 9.65, worse than the look-up. In CV it is statistically tied with simply repeating last year's yield (p = 0.68).
+4. **The 90 % range is not adaptive.** It is one width (± 1.04 t/ha); coverage is 88.5 % overall and 85.9–92.0 % by crop or region.
+5. **Tie-check p-values are optimistic.** There are only 5 folds and they share training rows; the Wilcoxon floor is 0.0625.
+6. **The full rebuild takes 2 h 10 min** (`--fast`: 33 min 35 s).
+7. **Free-tier Cloud sleeps** after 12 hours without traffic. Wake time is unmeasured, so wake the app 10 min before presenting.
+8. **Streamlit usage statistics are on** for the deployed app (see above).
+9. **Memory and cold start were measured on Windows** (Python 3.14); Cloud runs Linux with Python 3.12.
+10. **Associations, not causes:** the data is observational.
+
+---
+
 ## Phase 5 results (2026-11-15): deploy-ready, CI and demo
 
-**Status: showcase-ready.** Still open: the Streamlit Cloud deploy click and the `LIVE_DEMO_URL` in the README (yours), the first CI run (on push), and a team rehearsal of `docs/DEMO_SCRIPT.md`.
+**Status: showcase-ready.** Still open at the end of Phase 5 (all done in Phase 6): the Streamlit Cloud deploy click and the live URL in the README, the first CI run (on push), and a team rehearsal of `docs/DEMO_SCRIPT.md`.
 
 Measured in the Phase 5 session:
 - the real repo;
@@ -647,8 +728,8 @@ The Pipeline fix itself is already done. This phase hardens the code around it.
 
 ### Phase 5: deploy, README, demo script (≈ 5–7 h)
 
-- [ ] Deploy to Streamlit Community Cloud; smoke-test every page on the public URL (prepared in Phase 5: `docs/DEPLOY.md`, runtime-only `requirements.txt`, CI smoke job; the deploy click and the URL check are yours)
-- [x] README: live link badge, fresh screenshots (light + dark), 3-command setup, both dataset links (Phase 5: `LIVE_DEMO_URL` placeholder until deployed, CI badge)
+- [x] Deploy to Streamlit Community Cloud; smoke-test every page on the public URL (Phase 6: 56 of 56 live checks pass; prepared in Phase 5: `docs/DEPLOY.md`, runtime-only `requirements.txt`, CI smoke job; the deploy click and the URL check are yours)
+- [x] README: live link badge, fresh screenshots (light + dark), 3-command setup, both dataset links (Phase 5: CI badge; Phase 6: live link https://cropyieldprediction-team.streamlit.app/)
 - [x] 5-minute demo script with timings + a backup plan (local `start.bat`, pre-recorded GIF, static screenshots) (Phase 5: 8 minutes + 2 buffer for 3 presenters; plan B = local app + `docs/screenshots/`; no GIF recorded)
 - [ ] Rehearse the viva Q&A from `CODE_REVIEW.md` §2, plus the new §4.3 leakage numbers (sheet ready: `docs/VIVA_NOTES.md`; the rehearsal is the team's)
 - [x] Final full rebuild + check on a clean clone (full build in Phase 4: 129 min 44 s; Phase 5: `build --fast` + `run.py check` on a fresh clone)

@@ -2,12 +2,23 @@
 
 CSL236 AIML course project, Team 2: **Saurav Lamba** (24csu188), **Sara Sharma** (24csu184), **Anvi** (24csu024).
 
+**Live app:** https://cropyieldprediction-team.streamlit.app/ (Streamlit Community Cloud). **Fallback:** the local app (`start.bat`) and `docs/screenshots/`.
+
 Every number below is what the app shows from the committed tables (`results/tables/`); if a number on screen differs, say the one on screen. Start in **Simple** mode and **light** theme; switch to Technical only where the script says so.
 
 ## Pre-demo checklist (T − 15 min)
 
-- [ ] **Wake the cloud app 10 minutes before:** open the live URL; if it shows "Zzzz. This app has gone to sleep", click **Yes, get this app back up!** (free-tier apps sleep after 12 hours without traffic).
-- [ ] **Warm the caches:** visit all 7 pages once in Simple, then Model comparison, Explain and India once in Technical. Then go back to Simple and **Overview**. The first Predict visit builds the SHAP explainer; after that every click is instant.
+- [ ] **Wake the cloud app (T − 10 min):**
+  1. Open https://cropyieldprediction-team.streamlit.app/ in the presenting browser.
+  2. If it shows "Zzzz. This app has gone to sleep due to inactivity", click **Yes, get this app back up!** and wait for the Overview to appear. Free-tier apps sleep after 12 hours without traffic; the wake-up time was not measured, which is why this is done 10 minutes early.
+  3. Check the Overview shows **0.63 / 0.65 t/ha, 69 %, ± 1.04 t/ha** and no "Health check" card.
+- [ ] **Warm the caches (T − 8 min):** click through the top navigation once in Simple: Predict, What-if, Model comparison, Explain, Data explorer, India. Then switch to **Technical** on Model comparison, Explain and India, and back to **Simple** and **Overview**. The first Predict visit builds the SHAP explainer; after that the clicks are fast.
+- [ ] **Expected speed on the warm live app** (measured 2026-11-15 at 1366 px, headless Chrome):
+  - full page load: median **4.6 s** over 34 page loads, range 3.5–10.8 s;
+  - page switch through the top navigation: **0.8–1.1 s**, Predict **2.3 s**;
+  - Simple → Technical switch: median **0.5 s**, at most 1.3 s.
+
+  If a page takes much longer than 10 s, switch to plan B.
 - [ ] **Fallback running:** on the presenting laptop, double-click `start.bat` (or `python run.py app`) so the local app is already open on `http://localhost:8501` in a second tab.
 - [ ] **Projector:** display at **1366 × 768 or 1280 × 720**, browser zoom 100 %, the browser in full screen (F11). Check the header and the top cards fit without scrolling sideways.
 - [ ] **Light mode:** ⋮ (top right) → Settings → Light. Private/incognito windows start in light.

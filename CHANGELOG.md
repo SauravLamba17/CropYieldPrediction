@@ -96,3 +96,19 @@ See `PROGRESS.md` (Phase 5 section) for the measured results behind each item.
 - **Small fixes:**
   - India page: a setup card is also shown when `india_model_names.json` is missing.
   - Build-time hints are updated (26 / 105 min).
+
+## Phase 6 — live verification and close-out
+
+See `PROGRESS.md` (Phase 6 section) for the measured results.
+
+- **Live app verified:** https://cropyieldprediction-team.streamlit.app/
+  - All 7 pages × Simple/Technical × light/dark × 1366/768 pass the strict geometry check, with every chart drawn (56 of 56).
+  - The Overview KPIs match the committed tables.
+  - The Predict preset, the CSV report, the What-if heatmap, A vs B and the India tie-check wording all work.
+  - Warm page load: median 4.6 s; page switches 0.8–2.3 s.
+- **Outside requests on Cloud documented:** the Cloud wrapper's analytics and status hosts, plus Streamlit's default usage statistics from the app frame (`data.streamlit.io`, `webhooks.fivetran.com`). Fonts come from the app. The README and DEPLOY.md no longer claim that the deployed app contacts no outside server.
+- **CI:** `actions/checkout` v4 → v7 and `actions/setup-python` v5 → v7, both on Node 24 (verified on their GitHub releases). The pip cache config is unchanged.
+- **Docs:**
+  - the live URL replaces the live-demo placeholder in README, DEPLOY.md, DEMO_SCRIPT.md and VIVA_NOTES.md, with an "Open the live app" link at the top of the README;
+  - DEMO_SCRIPT has the wake-up steps and measured live timings;
+  - PROGRESS has the Phase 6 results, the showcase-ready checklist and the known limitations.

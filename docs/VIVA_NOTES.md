@@ -93,7 +93,7 @@ The look-up plus a random forest trained on the look-up's residuals, both time-s
 ## Deployment and engineering
 
 **Q: How is the app deployed?**
-On Streamlit Community Cloud from the public GitHub repo, Python 3.12. It installs only `requirements.txt`: the app runtime, with CPU-only xgboost on Linux. That is 782 MB, down from 1,097 MB. Nothing is trained on the server; it reads the committed models and tables.
+On Streamlit Community Cloud (https://cropyieldprediction-team.streamlit.app/) from the public GitHub repo, Python 3.12. It installs only `requirements.txt`: the app runtime, with CPU-only xgboost on Linux. That is 782 MB, down from 1,097 MB. Nothing is trained on the server; it reads the committed models and tables.
 
 **Q: How do you know it works on Linux?**
 GitHub Actions CI on ubuntu-latest, Python 3.12, with no secrets. One job runs ruff and the whole test suite (raw-data tests skip, as on a fresh clone). A smoke job installs only `requirements.txt` and renders every page in both modes.
