@@ -190,9 +190,10 @@ CSS = f"""
     --font-num: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
     --font-head: 'Manrope', 'Inter', system-ui, sans-serif;
 }}
-/* --- Chrome: no sidebar, no footer; the header keeps the page navigation and the theme menu --- */
-footer, [data-testid="stSidebar"], [data-testid="stSidebarCollapsedControl"],
-[data-testid="stDecoration"] {{ display: none !important; }}
+/* --- Chrome: no footer; the header keeps the page navigation and the theme menu. The sidebar
+   is never hidden: on wide screens Streamlit does not draw one (the navigation is on top), and
+   on narrow screens it moves the navigation into it, behind the "»" button. --- */
+footer, [data-testid="stDecoration"] {{ display: none !important; }}
 [data-testid="stMainBlockContainer"] {{
     padding: 4.25rem var(--sp-6) var(--sp-4) var(--sp-6) !important; max-width: 1600px;
 }}
