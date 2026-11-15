@@ -134,3 +134,36 @@ def table_view(frame: pd.DataFrame, simple: bool = False) -> "pd.io.formats.styl
 
 def show_table(frame: pd.DataFrame, simple: bool = False) -> None:
     st.table(table_view(frame, simple))
+
+
+def tie_card(tie: pd.DataFrame | None, simple: bool = False) -> None:
+    """The paired tie check (results/tables/tie_check.csv) for one dataset, as a small table.
+
+    tie: rows of tie_check.csv already filtered to one dataset, or None if not built yet.
+    """
+    card_title(
+        "Statistically distinguishable?",
+        "Paired test on the 5 CV folds: RMSE of A − RMSE of B, fold by fold",
+        help_text=(
+            "For each fold, the difference in RMSE between the two models on the same rows. A paired "
+            "t-test asks whether the mean difference is zero; 'yes' means p < 0.05. The exact Wilcoxon "
+            "test cannot go below p = 0.0625 with 5 folds. Folds share training rows, so both tests are "
+            "optimistic: a 'no' is the robust answer."
+        ),
+    )
+    if tie is None:
+        setup_card("tie_check.csv is missing", "It is written by the tie check (about 25 minutes):",
+                   command="python -m src.tie_check")
+        return
+    rows = pd.DataFrame(
+        {
+            "A": tie["model_a"].map(lambda m: labels.model(m, simple)),
+            "B": tie["model_b"].map(lambda m: labels.model(m, simple)),
+            "Mean diff (A − B)": tie["mean_diff"].map(lambda v: f"{v:+.4f}"),
+            "sd of diff": tie["sd_diff"].map(lambda v: f"{v:.4f}"),
+            "t-test p": tie["t_test_p"].map(lambda v: f"{v:.3f}"),
+            "Wilcoxon p": tie["wilcoxon_p"].map(lambda v: f"{v:.4f}"),
+            "Distinguishable?": tie["distinguishable"].map({True: "yes", False: "no"}),
+        }
+    )
+    st.table(rows.set_index("A"))

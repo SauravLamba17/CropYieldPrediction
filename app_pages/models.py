@@ -5,7 +5,16 @@ import streamlit as st
 from src import config
 from src.evaluate import leaderboard
 from ui import charts, data, labels, plain
-from ui.components import Kpi, caption, card_title, headline_card, kpi_row, setup_card, show_table
+from ui.components import (
+    Kpi,
+    caption,
+    card_title,
+    headline_card,
+    kpi_row,
+    setup_card,
+    show_table,
+    tie_card,
+)
 from ui.plain import TIPS
 from ui.theme import tip
 
@@ -106,3 +115,11 @@ if not simple:
         columns = [c for c in ["model", "rmse_mean", "rmse_std", "train_rmse", "rmse", "mae", "r2"] if c in ranked]
         show_table(ranked[columns].rename(columns={"rmse": "test_rmse", "mae": "test_mae", "r2": "test_r2"}))
         caption(SELECTION_NOTE)
+    with st.container(key="card-model-tie"):
+        tie = data.load_table("tie_check")
+        tie = None if tie is None else tie[(tie["dataset"] == "kaggle") & (tie["model_a"] == names["best_overall"])]
+        tie_card(tie)
+        if tie is not None:
+            caption(plain.kaggle_tie_note(
+                {labels.model(m): p for m, p in zip(tie["model_b"], tie["t_test_p"])},
+                {labels.model(m): bool(d) for m, d in zip(tie["model_b"], tie["distinguishable"])}))

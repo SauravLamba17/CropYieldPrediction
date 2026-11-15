@@ -9,7 +9,16 @@ import streamlit as st
 from src import config
 from src.india_features import LAG_COLUMNS
 from ui import charts, data, labels, plain
-from ui.components import Kpi, caption, card_title, headline_card, kpi_row, setup_card, show_table
+from ui.components import (
+    Kpi,
+    caption,
+    card_title,
+    headline_card,
+    kpi_row,
+    setup_card,
+    show_table,
+    tie_card,
+)
 from ui.plain import TIPS
 from ui.theme import tip
 
@@ -102,6 +111,7 @@ history = shap_shares.set_index("feature")["share"].reindex(LAG_COLUMNS).sum()  
 unit_tip = tip(TIPS["india_units"])
 tables = {name: data.load_table(name) for name in PHASE4_TABLES}
 selection = data.load_json("india_selection")
+tie = data.load_table("tie_check")
 extended = selection is not None and all(t is not None for t in tables.values())
 
 if not extended:  # tables from before Phase 4: the original page
@@ -130,6 +140,11 @@ else:
         "group": labels.lower(labels.feature_set_name(top_group, simple).removeprefix("+ ")),
         "gain": gains[top_group],
     }
+    if tie is not None:  # paired CV tie check: (p, distinguishable) against each reference
+        pairs = tie[(tie["dataset"] == "india") & (tie["model_a"] == selected)].set_index("model_b")
+        for key, ref in (("tie_lookup", LOOKUP), ("tie_persistence", PERSISTENCE)):
+            if ref in pairs.index:
+                verdict_inputs[key] = (pairs.loc[ref, "t_test_p"], bool(pairs.loc[ref, "distinguishable"]))
     title, verdict = plain.india_verdict(verdict_inputs, simple)
     headline_card(plain.india_phase4_headline(verdict_inputs, simple))
 
@@ -241,6 +256,9 @@ else:
         shown["model"] = [f"{labels.model(m)}{' ✓ selected' if s else ''}" for m, s in
                           zip(shown["model"], shown["selected"])]
         show_table(shown.drop(columns="selected"))
+
+    with st.container(key="card-india-tie"):
+        tie_card(None if tie is None else tie[tie["dataset"] == "india"])
 
     perm, shap_table = tables["india_explain_permutation"], tables["india_explain_shap"]
     with st.container(key="card-india-explain"):

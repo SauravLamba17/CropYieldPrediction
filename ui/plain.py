@@ -459,6 +459,10 @@ def india_verdict(r: dict, simple: bool) -> tuple[str, str]:
                 f"But just repeating last year's yield is off by <b>{r['persistence_test']:.2f}</b>, {close} "
                 "the model: knowing last year matters more than the weather or farm inputs. "
             )
+        tie = r.get("tie_persistence")  # (p, distinguishable) from tie_check.csv, or None
+        if tie is not None and not tie[1] and r["persistence_test"] < r["lookup_test"]:
+            text += ("In the five validation periods, the model and repeating last year's yield are "
+                     "<b>statistically a tie</b>. ")
         text += "This assumes last year's real yield is known when predicting."
         return title, text
     text = (
@@ -494,7 +498,33 @@ def india_verdict(r: dict, simple: bool) -> tuple[str, str]:
     )
     text += (f", worse than the look-up ({r['lookup_test']:.2f})." if r["strict_test"] >= r["lookup_test"]
              else ", still better than the look-up.")
+    text += tie_sentence(r.get("tie_lookup"), r.get("tie_persistence"))
     return title, text
+
+
+def tie_sentence(lookup: tuple | None, persistence: tuple | None) -> str:
+    """The paired CV tie check in one or two sentences; each argument is (p, distinguishable)."""
+    if lookup is None and persistence is None:
+        return ""
+    parts = [
+        f"{'distinguishable' if test[1] else '<b>not distinguishable</b>'} from {name} (p = {test[0]:.3f})"
+        for name, test in (("the look-up", lookup), ("last year's yield", persistence)) if test is not None
+    ]
+    text = " Paired t-test on the 5 CV folds: the model is " + "; ".join(parts) + "."
+    if persistence is not None and not persistence[1]:
+        text += " So the gain over simply repeating last year's yield is within fold-to-fold noise."
+    return text
+
+
+def kaggle_tie_note(p_values: dict[str, float], distinguishable: dict[str, bool]) -> str:
+    """Model comparison: are the selected model's CV wins over the runners-up real? Names are display names."""
+    if not p_values:
+        return ""
+    ties = [n for n in p_values if not distinguishable[n]]
+    shown = ", ".join(f"{n} (p = {p_values[n]:.2f})" for n in p_values)
+    if len(ties) == len(p_values):
+        return f"On the 5 CV folds the selected model is not statistically distinguishable from {shown}: a tie."
+    return f"Paired t-test on the 5 CV folds against {shown}."
 
 
 def india_phase4_headline(r: dict, simple: bool) -> str:
