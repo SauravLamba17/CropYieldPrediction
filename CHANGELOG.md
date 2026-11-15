@@ -106,7 +106,7 @@ See `PROGRESS.md` (Phase 6 section) for the measured results.
   - The Overview KPIs match the committed tables.
   - The Predict preset, the CSV report, the What-if heatmap, A vs B and the India tie-check wording all work.
   - Warm page load: median 4.6 s; page switches 0.8–2.3 s.
-- **Outside requests on Cloud documented:** the Cloud wrapper's analytics and status hosts, plus Streamlit's default usage statistics from the app frame (`data.streamlit.io`, `webhooks.fivetran.com`). Fonts come from the app. The README and DEPLOY.md no longer claim that the deployed app contacts no outside server.
+- **Outside requests on Cloud documented:** the Cloud wrapper's analytics and status hosts, plus Streamlit's default usage statistics from the app frame (`data.streamlit.io`, `webhooks.fivetran.com`). Fonts come from the app. The usage statistics were then switched off in `.streamlit/config.toml` (`[browser] gatherUsageStats = false`), so the app itself makes no outside requests; only Cloud's wrapper does. The README and DEPLOY.md say so.
 - **CI:** `actions/checkout` v4 → v7 and `actions/setup-python` v5 → v7, both on Node 24 (verified on their GitHub releases). The pip cache config is unchanged.
 - **Docs:**
   - the live URL replaces the live-demo placeholder in README, DEPLOY.md, DEMO_SCRIPT.md and VIVA_NOTES.md, with an "Open the live app" link at the top of the README;

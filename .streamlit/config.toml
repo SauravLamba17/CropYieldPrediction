@@ -8,6 +8,11 @@ enableStaticServing = true            # serves static/ (the bundled fonts)
 # (about 5 s per page load). Restart the app after editing code.
 fileWatcherType = "none"
 
+[browser]
+# No usage statistics to Streamlit (data.streamlit.io / webhooks.fivetran.com): the app itself
+# makes no outside requests, locally or on Streamlit Cloud.
+gatherUsageStats = false
+
 [client]
 toolbarMode = "viewer"                # keeps the menu with the Light / Dark / System switch
 showSidebarNavigation = false

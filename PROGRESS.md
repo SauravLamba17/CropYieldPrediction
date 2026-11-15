@@ -65,7 +65,7 @@ The app was already awake, so the wake-from-sleep time was not measured.
   - `share.streamlit.io` and `www.streamlitstatus.com` / `*.statuspage.io`: Cloud UI and status;
   - `cdn.segment.com`, `cdn.heapanalytics.com`, `sdk.us.heap-api.com`, `www.googletagmanager.com`, `www.google-analytics.com`, `stats.g.doubleclick.net`: Cloud analytics;
   - `avatars.githubusercontent.com`: the owner's avatar in the "Created by" badge.
-- *App iframe:* `data.streamlit.io` (1 request, `metrics.json`) and `webhooks.fivetran.com` (224 requests). These are Streamlit's built-in usage statistics, on by default (`browser.gatherUsageStats`). Locally, `run.py` turns them off; `.streamlit/config.toml` does not. **Reported, not changed:** setting `gatherUsageStats = false` under `[browser]` would stop them, but it is a config change and needs your OK. The docs now describe this accurately (README, DEPLOY.md).
+- *App iframe:* `data.streamlit.io` (1 request, `metrics.json`) and `webhooks.fivetran.com` (224 requests). These are Streamlit's built-in usage statistics, on by default (`browser.gatherUsageStats`). Locally, `run.py` turned them off; `.streamlit/config.toml` did not. **Fixed after the check (approved):** `.streamlit/config.toml` now sets `gatherUsageStats = false` under `[browser]`, so the app itself makes no outside requests and only Cloud's wrapper does. This takes effect on Cloud after the next push; it has not been re-measured live.
 
 **Other Phase 6 changes:**
 - CI actions bumped:
@@ -85,7 +85,7 @@ The app was already awake, so the wake-from-sleep time was not measured.
 5. **Tie-check p-values are optimistic.** There are only 5 folds and they share training rows; the Wilcoxon floor is 0.0625.
 6. **The full rebuild takes 2 h 10 min** (`--fast`: 33 min 35 s).
 7. **Free-tier Cloud sleeps** after 12 hours without traffic. Wake time is unmeasured, so wake the app 10 min before presenting.
-8. **Streamlit usage statistics are on** for the deployed app (see above).
+8. **Cloud's wrapper page contacts outside hosts** (Cloud analytics and status). The app itself does not, now that Streamlit's usage statistics are off; this has not been re-measured live since the change.
 9. **Memory and cold start were measured on Windows** (Python 3.14); Cloud runs Linux with Python 3.12.
 10. **Associations, not causes:** the data is observational.
 

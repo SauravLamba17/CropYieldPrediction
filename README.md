@@ -321,7 +321,7 @@ Because these columns are really a national per-year index (section 4B), the ful
 
 ## 7. The interactive demo app
 
-A Streamlit app (`app.py` plus one script per page in `app_pages/`) makes the model explorable without any code, including for readers with no technical background. The design is "Field & Harvest": parchment and crop-green in light mode, a deep field-green in dark mode, with Manrope headings, Inter text and IBM Plex Mono numbers. The fonts are bundled in `static/fonts/` (OFL), and run locally (`run.py`) the app makes **no request to any other server**, so it looks the same on an offline projector laptop. On Streamlit Cloud, the hosting wrapper and Streamlit's default usage statistics do contact outside hosts (see `docs/DEPLOY.md`).
+A Streamlit app (`app.py` plus one script per page in `app_pages/`) makes the model explorable without any code, including for readers with no technical background. The design is "Field & Harvest": parchment and crop-green in light mode, a deep field-green in dark mode, with Manrope headings, Inter text and IBM Plex Mono numbers. The fonts are bundled in `static/fonts/` (OFL), and the app itself makes **no request to any other server**, so it looks the same on an offline projector laptop. Streamlit's usage statistics are off in `.streamlit/config.toml`. On Streamlit Cloud, only Cloud's own wrapper page around the app contacts outside hosts (see `docs/DEPLOY.md`).
 
 - **Pages** (top navigation): Overview · Predict · What-if · Model comparison · Explain · Data explorer · India.
 - **Simple / Technical** switch at the top right, kept across pages. Simple uses plain words and everyday names ("Typical error" instead of RMSE); Technical shows the exact metrics, tables and SHAP waterfall.

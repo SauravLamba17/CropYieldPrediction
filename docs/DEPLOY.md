@@ -2,12 +2,9 @@
 
 **Live app:** https://cropyieldprediction-team.streamlit.app/ (deployed from `main`, `app.py`, Python 3.12; verified end to end in Phase 6, see `PROGRESS.md`).
 
-The app runs on Streamlit Community Cloud straight from the public GitHub repository. Nothing is trained on the server: it reads the committed model files (`models/`), results tables (`results/tables/`) and the processed splits (`data/processed/`). No secrets and no API keys. The app's own code makes no outside calls (the fonts are bundled in `static/fonts/`). On Cloud, two kinds of outside requests do happen:
+The app runs on Streamlit Community Cloud straight from the public GitHub repository. Nothing is trained on the server: it reads the committed model files (`models/`), results tables (`results/tables/`) and the processed splits (`data/processed/`). No secrets and no API keys. **The app itself makes no outside requests**, locally or on Cloud. The fonts are bundled in `static/fonts/`, and Streamlit's usage statistics are switched off in `.streamlit/config.toml` (`[browser] gatherUsageStats = false`).
 
-- The Cloud wrapper page around the app loads Streamlit's analytics and status scripts.
-- Streamlit's built-in usage statistics are on by default (`browser.gatherUsageStats`), so the app frame also contacts `data.streamlit.io` and `webhooks.fivetran.com`. Locally, `run.py` turns them off. To turn them off on Cloud too, set `gatherUsageStats = false` under `[browser]` in `.streamlit/config.toml`.
-
-Phase 6 measured both (see `PROGRESS.md`).
+On Cloud, the only outside requests come from **Streamlit Cloud's wrapper page** around the app: its analytics, its status banner and the owner's avatar. Phase 6 measured these (see `PROGRESS.md`). Before this setting, the app frame also contacted `data.streamlit.io` and `webhooks.fivetran.com` for Streamlit's default usage statistics.
 
 Facts about Community Cloud below are from the Streamlit docs (docs.streamlit.io → Deploy → Streamlit Community Cloud) as read on 2026-11-15; check them again if a screen looks different.
 
