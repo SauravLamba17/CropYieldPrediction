@@ -76,6 +76,19 @@ TIPS = {  # one-line explanations behind every ⓘ (both modes)
         "Ablation: re-run every model without the fertilizer and pesticide columns to see "
         "how much they help (Δ = change)."
     ),
+    "feature_ablation": (
+        "Feature ablation: the same model family is re-tuned with one feature group added at a time "
+        "(target encoding = past average yields; lags = last years' yields; trend = the year), then "
+        "with all of them. Every row is scored on the same 5 time-ordered folds."
+    ),
+    "persistence": (
+        "A second no-ML reference: predict each crop × state with its own yield of the previous "
+        "year (the look-up when it was not grown last year)."
+    ),
+    "segments": (
+        "Rows the model finds hard: crop × state pairs never grown before, crops never seen in "
+        "training, and rows with no record in the previous year."
+    ),
     "time_cv": (
         "Cross-validation where every check scores the model only on years later than the "
         "ones it trained on. sd = spread across the checks."
@@ -342,27 +355,33 @@ def india_headline(lookup_rmse: float, best_rmse: float, crop_share: float) -> s
     )
 
 
-def lesson_crop(crop_share: float) -> tuple[str, str]:
+def lesson_crop(crop_share: float, history_share: float = 0.0) -> tuple[str, str]:
+    if history_share > crop_share:  # Phase 4 model: the lag features lead
+        return pct(history_share), (
+            f"On real farms, the best guide is <b>the recent past</b>: the last few years' yields make up "
+            f"<b>{pct(history_share)}</b> of what the chosen model relies on, crop type <b>{pct(crop_share)}</b>."
+        )
     return pct(crop_share), (
         f"On real farms, <b>which crop you grow</b> matters most: crop type makes up "
         f"<b>{pct(crop_share)}</b> of what the best model relies on."
     )
 
 
-def lesson_lookup(lookup_rmse: float, best_rmse: float, beats_every_model: bool) -> tuple[str, str]:
-    verdict = "It beats every model." if beats_every_model else "It comes close to the models."
+def lesson_lookup(lookup_rmse: float, best_rmse: float, lookup_wins: bool) -> tuple[str, str]:
+    verdict = "It beats the chosen model." if lookup_wins else "The chosen model beats it."
     return f"{lookup_rmse:.2f} vs {best_rmse:.2f}", (
         f"A simple <b>look-up</b> of each crop's usual yield in each state is typically off by "
         f"<b>{lookup_rmse:.2f} {INDIA_UNIT}</b>, against <b>{best_rmse:.2f} {INDIA_UNIT}</b> "
-        "for the best "
+        "for the chosen "
         f"model. {verdict}"
     )
 
 
 def lesson_seasons(n_negative: int, n_crops: int) -> tuple[str, str]:
+    lead = ("The models tell crops apart well but struggle with good vs bad seasons for the same crop"
+            if 2 * n_negative > n_crops else "Good vs bad seasons for the same crop are the hardest part")
     return f"{n_negative} of {n_crops}", (
-        "The models tell crops apart well but struggle with good vs bad seasons for the same "
-        f"crop: for <b>{n_negative} of the {n_crops}</b> most common crops, they predict that "
+        f"{lead}: for <b>{n_negative} of the {n_crops}</b> most common crops, they predict that "
         "crop's yield no better than simply guessing its average every time (R² below zero)."
     )
 
@@ -409,4 +428,86 @@ def ph_sentence(r: float, rho: float, optimum: dict, lasso_kept: bool) -> str:
         f" Yet the model's prediction rises and then falls, best around pH <b>{optimum['low']:.1f}"
         f"–{optimum['high']:.1f}</b> (peak at pH {optimum['peak_x']:.1f}): a hump has almost no "
         f"straight-line trend, which is all that correlation measures. {lasso}."
+    )
+
+
+def india_verdict(r: dict, simple: bool) -> tuple[str, str]:
+    """(title, html) for the "beat the look-up?" card, every number from the Phase 4 tables.
+
+    r: model (display name), model_cv, lookup_cv, model_test, lookup_test, persistence_test,
+    strict_test, group (feature set that helps most), gain (its CV RMSE cut), beats_cv.
+    """
+    u = INDIA_UNIT
+    won_test = r["model_test"] < r["lookup_test"]
+    if r["beats_cv"] and won_test:
+        title = "How the model beats the look-up"
+    elif r["beats_cv"]:
+        title = "Better in cross-validation, not on the test years"
+    else:
+        title = "Why can't machine learning beat a look-up?"
+    if simple:
+        text = (
+            f"On the 2016–2020 years it never saw, the model is typically off by <b>{r['model_test']:.2f} {u}</b>, "
+            f"the look-up by <b>{r['lookup_test']:.2f}</b>. "
+        )
+        text += (
+            f"What helps most is <b>{r['group']}</b>. " if r["gain"] > 0 else ""
+        )
+        if r["persistence_test"] < r["lookup_test"]:
+            close = "as good as" if r["persistence_test"] <= r["model_test"] else "nearly as good as"
+            text += (
+                f"But just repeating last year's yield is off by <b>{r['persistence_test']:.2f}</b>, {close} "
+                "the model: knowing last year matters more than the weather or farm inputs. "
+            )
+        text += "This assumes last year's real yield is known when predicting."
+        return title, text
+    text = (
+        f"Selected by time-ordered cross-validation, <b>{r['model']}</b> scores CV RMSE "
+        f"<b>{r['model_cv']:.2f}</b> against <b>{r['lookup_cv']:.2f}</b> for the crop × state look-up "
+        f"on the same folds; on the 2016–2020 test years (used once) <b>{r['model_test']:.2f}</b> against "
+        f"<b>{r['lookup_test']:.2f}</b> {u}. "
+    )
+    if not r["beats_cv"]:
+        text += (
+            "Yields persist strongly by crop and state, and the other inputs carry little signal: one annual "
+            "rainfall figure per state, and fertilizer and pesticide that are national yearly averages. "
+        )
+    if r["gain"] > 0:
+        text += (
+            f"The single feature group that closes most of the gap is <b>{r['group']}</b>: added alone to the "
+            f"base inputs it cuts CV RMSE by <b>{r['gain']:.2f}</b>. "
+        )
+    if r["persistence_test"] <= r["model_test"]:
+        text += (
+            f"A caution: simply repeating last year's yield (no ML) scores <b>{r['persistence_test']:.2f}</b> on "
+            "the test years, at least as good as the model, so the gain comes from recent history rather than "
+            "from the weather or input columns. "
+        )
+    elif r["persistence_test"] < r["lookup_test"]:
+        text += (
+            f"Repeating last year's yield (no ML) also beats the look-up (<b>{r['persistence_test']:.2f}</b>); "
+            f"the model adds <b>{r['persistence_test'] - r['model_test']:.2f}</b> on top of that. "
+        )
+    text += (
+        "These scores assume last year's actual yields are known when predicting (one year ahead). "
+        f"If only 1997–2015 were known for every test year, the model would score <b>{r['strict_test']:.2f}</b>"
+    )
+    text += (f", worse than the look-up ({r['lookup_test']:.2f})." if r["strict_test"] >= r["lookup_test"]
+             else ", still better than the look-up.")
+    return title, text
+
+
+def india_phase4_headline(r: dict, simple: bool) -> str:
+    """Page headline after Phase 4: does the selected model beat the crop x state look-up?"""
+    better = r["model_test"] < r["lookup_test"]
+    if simple:
+        return (
+            f"On real Indian crop records, the chosen model is typically off by <b>{r['model_test']:.2f} {INDIA_UNIT}</b> "
+            f"on years it never saw, against <b>{r['lookup_test']:.2f}</b> for a simple look-up of each crop's usual "
+            f"yield in each state: the {'model' if better else 'look-up'} is better."
+        )
+    return (
+        f"Selected by time-ordered CV, <b>{r['model']}</b> scores test RMSE <b>{r['model_test']:.2f}</b> on 2016–2020, "
+        f"{'beating' if better else 'losing to'} the crop × state look-up (<b>{r['lookup_test']:.2f}</b>); "
+        f"CV RMSE <b>{r['model_cv']:.2f}</b> vs <b>{r['lookup_cv']:.2f}</b> on the same folds."
     )

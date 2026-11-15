@@ -33,6 +33,13 @@ FEATURES = {
     config.INDIA_STATE: ("State", "State", ""),
     config.INDIA_YEAR: ("Year", "Year", ""),
     config.INDIA_TARGET: ("Yield", "Yield", "yield units"),
+    # India time-safe features (Phase 4; log1p scale, from earlier years only)
+    "te_crop_state": ("Crop × state past mean", "Past yield, crop in state", ""),
+    "te_crop": ("Crop past mean", "Past yield of the crop", ""),
+    "te_state": ("State past mean", "Past yield in the state", ""),
+    "lag1_yield": ("Last year's yield (log)", "Last year's yield", ""),
+    "rolling3_yield": ("3-year mean yield (log)", "Last 3 years' yield", ""),
+    "history_years": ("Years of history", "Years of history", "years"),
 }
 
 GROUPS = {  # config.FEATURE_GROUPS key -> (technical, plain)
@@ -52,6 +59,21 @@ MODELS = {  # model key -> (technical, plain)
     "lasso": ("Lasso", "Straight-line formula (trimmed)"),
     "random_forest": ("Random Forest", "Forest of decision trees"),
     "gradient_boost": ("XGBoost", "Boosted decision trees"),
+    "lightgbm": ("LightGBM", "Boosted trees (LightGBM)"),
+    "hist_gradient_boost": ("HistGradientBoosting", "Boosted trees (scikit-learn)"),
+}
+FEATURE_SETS = {  # India ablation feature set -> (technical, plain, short chart label)
+    "base": ("base inputs", "basic inputs", "Base"),
+    "target_encoding": ("+ target encoding", "+ past averages", "+ Target enc."),
+    "lags": ("+ lags", "+ recent yields", "+ Lags"),
+    "trend": ("+ year trend", "+ year", "+ Trend"),
+    "all": ("all features", "everything", "All"),
+    "hybrid (all)": ("hybrid, all features", "look-up + fix", "Hybrid"),
+}
+REFERENCES = {  # no-ML India predictors -> (technical, plain)
+    "crop x state lookup (no ML)": ("Crop × state look-up (no ML)", "Look-up: crop's usual yield in the state"),
+    "crop lookup (no ML)": ("Crop look-up (no ML)", "Look-up: crop's usual yield"),
+    "last year's yield (no ML)": ("Last year's yield (no ML)", "Repeat last year's yield"),
 }
 
 COLUMNS = {  # results-table column -> header
@@ -95,6 +117,15 @@ COLUMNS = {  # results-table column -> header
     "coverage": "Coverage",
     "n": "Test fields",
     "group": "Group",
+    "group_by": "Grouped by",
+    "segment": "Segment",
+    "feature_set": "Feature set",
+    "test_rmse_strict": "Test RMSE (strict)",
+    "rmse_model": "RMSE, model",
+    "rmse_lookup": "RMSE, look-up",
+    "rmse_persistence": "RMSE, last year",
+    "rmse_model_strict": "RMSE, model (strict)",
+    "model_beats_lookup": "Model better",
 }
 
 
@@ -122,8 +153,20 @@ def group(key: str, simple: bool = False) -> str:
 
 
 def model(key: str, simple: bool = False) -> str:
-    technical, plain = MODELS[key]
-    return plain if simple else technical
+    """Model display name; also India candidates ('lightgbm + lags', 'hybrid: lookup + ...')."""
+    if key in MODELS or key in REFERENCES:
+        technical, plain = MODELS.get(key) or REFERENCES[key]
+        return plain if simple else technical
+    if key.startswith("hybrid: lookup + "):
+        family = key.removeprefix("hybrid: lookup + ").split(" (")[0]
+        return f"{'Look-up + ' if simple else 'Hybrid: look-up + '}{model(family, simple)}"
+    family, feature_set = key.split(" + ")
+    return f"{model(family, simple)} ({feature_set_name(feature_set, simple)})"
+
+
+def feature_set_name(key: str, simple: bool = False, short: bool = False) -> str:
+    technical, plain, chart = FEATURE_SETS[key]
+    return chart if short else plain if simple else technical
 
 
 def column(col: str) -> str:

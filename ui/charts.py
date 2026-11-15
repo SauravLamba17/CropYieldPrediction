@@ -709,3 +709,58 @@ def gap_chart(gap: pd.Series, names: dict[str, str], height: int):
         {"feature": [names[f] for f in gap.index], "value": gap.to_numpy(), "order": range(len(gap))}
     )
     return contribution_chart(frame, height)
+
+
+def ablation_chart(frame: pd.DataFrame, reference: float, reference_label: str, value_title: str, height: int):
+    """CV RMSE per feature set (columns `label`, `value`, `sd`), with a dashed reference line.
+
+    The lowest bar is green. The line is the no-ML look-up's CV RMSE on the same folds.
+    """
+    data = frame.assign(series=np.where(frame["value"] == frame["value"].min(), "green", "neutral"))
+    top = max(float(data["value"].max()), reference) * 1.3  # headroom: bar labels, then the line's label
+    x = alt.X("label:N", sort=list(data["label"]), title=None, axis=alt.Axis(labelAngle=0, labelLimit=120))
+    y = alt.Y("value:Q", title=value_title, scale=alt.Scale(domain=[0, top]))
+    tooltip = [alt.Tooltip("label:N", title="Feature set"), alt.Tooltip("value:Q", title=value_title, format=".3f"),
+               alt.Tooltip("sd:Q", title="± sd across folds", format=".3f")]
+    base = alt.Chart(data).encode(x=x, y=y)
+    bars = base.mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4).encode(color=colour("series"), tooltip=tooltip)
+    labels = base.mark_text(dy=-8, fontWeight=600).encode(text=alt.Text("value:Q", format=".2f"), color=solid("text"))
+    line = pd.DataFrame({"ref": [reference], "text": [f"{reference_label}: {reference:.2f}"]})
+    rule = alt.Chart(line).mark_rule(strokeDash=[6, 4], strokeWidth=2).encode(
+        y="ref:Q", color=solid("gold_chart"), tooltip=[alt.Tooltip("text:N", title="")]
+    )
+    # Pinned to the top-right corner, above every bar label (next to the line it collided with them).
+    rule_text = alt.Chart(line).mark_text(align="right", baseline="top", fontWeight=600).encode(
+        y=alt.value(0), x=alt.value("width"), text=alt.Text("text:N"), color=solid("text")
+    )
+    return style(alt.layer(bars, labels, rule, rule_text), height)
+
+
+def paired_bar_chart(frame: pd.DataFrame, label: str, pairs: dict[str, tuple[str, str]], value_title: str,
+                     height: int):
+    """Two bars per row (e.g. model vs look-up), side by side; rows keep the frame's order.
+
+    pairs: {column: (legend name, series)}; the legend names are shown in that order.
+    """
+    long = frame.melt(id_vars=[label], value_vars=list(pairs), var_name="which", value_name="value")
+    long["name"] = long["which"].map(lambda c: pairs[c][0])
+    long["series"] = long["which"].map(lambda c: pairs[c][1])
+    order = [name for name, _ in pairs.values()]
+    label_expr = "{" + ", ".join(f"'{s}': '{n}'" for n, s in pairs.values()) + "}[datum.label]"
+    y = alt.Y(f"{label}:N", sort=list(frame[label]), title=None, scale=alt.Scale(paddingInner=0.25))
+    base = alt.Chart(long).encode(
+        y=y,
+        yOffset=alt.YOffset("name:N", sort=order),
+        x=alt.X("value:Q", title=value_title, scale=alt.Scale(domainMax=float(long["value"].max()) * 1.2)),
+    )
+    bars = base.mark_bar(cornerRadius=3).encode(
+        color=alt.Color("series:N", scale=PALETTE, legend=alt.Legend(
+            title=None, orient="top", values=[s for _, s in pairs.values()], labelExpr=label_expr,
+            symbolType="circle")),
+        tooltip=[alt.Tooltip(f"{label}:N", title=""), alt.Tooltip("name:N", title="Predictor"),
+                 alt.Tooltip("value:Q", title=value_title, format=".2f")],
+    )
+    labels = base.mark_text(align="left", dx=4, fontSize=11).encode(
+        text=alt.Text("value:Q", format=".2f"), color=solid("text")
+    )
+    return style(alt.layer(bars, labels), height)
