@@ -116,3 +116,20 @@ def test_lesson_crop_names_the_recent_past_when_lags_lead():
     assert big == "80%" and "recent past" in text and "<b>10%</b>" in text
     assert "which crop you grow" in plain.lesson_crop(0.8337, history_share=0.0)[1]
     assert "struggle" not in plain.lesson_seasons(1, 10)[1]
+
+
+def test_signed_never_shows_minus_zero():
+    assert [plain.signed(v) for v in (-0.001, -0.0, 0.0, 0.004)] == ["0.00"] * 4
+    assert plain.signed(-0.5) == "−0.50" and plain.signed(0.1) == "+0.10"
+    assert plain.signed(-0.04, 1) == "0.0"
+
+
+def test_difference_bar_labels_say_0_00():
+    import pandas as pd
+
+    from ui import charts
+
+    gap = pd.Series({"Fertilizer": 1.23, "Soil_pH": -0.0004, "Rainfall": -0.2})
+    spec = charts.gap_chart(gap, {f: f for f in gap.index}, 160).to_dict()
+    labels = next(v for k, v in spec["datasets"].items())  # the one inline dataset
+    assert [r["label"] for r in labels] == ["+1.23", "0.00", "−0.20"]

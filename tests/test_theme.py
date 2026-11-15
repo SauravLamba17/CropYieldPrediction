@@ -1,5 +1,7 @@
 """Theme tokens: both modes complete, WCAG AA contrast, and config.toml in sync."""
 
+import re
+
 import tomllib
 
 from src import config
@@ -56,3 +58,23 @@ def test_fonts_are_bundled_not_downloaded():
 
 def test_css_follows_the_mode_without_python():
     assert "light-dark(#F6F4EC, #121611)" in theme.CSS
+
+
+def test_sidebar_is_never_hidden():
+    """Below Streamlit's breakpoint the top navigation moves into the sidebar ("»"): hiding the
+    sidebar left narrow screens with no navigation (Phase 7). Wide screens have no sidebar."""
+    assert "stSidebar" not in theme.CSS
+    assert "stExpandSidebarButton" not in theme.CSS
+
+
+def test_light_default_covers_every_page_path():
+    """The default writes Light for every page's theme key, not only the first page opened."""
+    files = re.findall(r'st\.Page\("app_pages/(\w+)\.py"', (config.ROOT / "app.py").read_text("utf-8"))
+    default = re.search(r'st\.Page\("app_pages/(\w+)\.py"[^)]*default=True', (config.ROOT / "app.py")
+                        .read_text("utf-8")).group(1)
+    assert set(theme.PAGE_PATHS) == {"" if f == default else f for f in files}
+    js = theme.DEFAULT_LIGHT_JS
+    assert str(list(theme.PAGE_PATHS)) in js
+    assert "for (const k of keys)" in js and '"stActiveTheme-" + base + p + "-v2"' in js
+    assert "explicit(" in js  # a viewer's own Light/Dark choice is kept
+    assert theme.DEFAULT_LIGHT_FLAG in js
