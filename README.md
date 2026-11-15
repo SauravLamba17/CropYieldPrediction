@@ -47,10 +47,10 @@ The project goes beyond fitting one model. It:
 
 | Question | Answer |
 |---|---|
-| **How accurately can yield be predicted?** | On the Kaggle benchmark: **test RMSE 0.646 t/ha, R² 0.69**, against 1.160 for a predict-the-mean baseline. On real Indian data: **R² 0.65** with Random Forest. |
+| **How accurately can yield be predicted?** | On the Kaggle benchmark: **test RMSE 0.646 t/ha, R² 0.69**, against 1.160 for a predict-the-mean baseline. On real Indian data: **R² 0.65** with Random Forest, **0.75** once time-safe history features are added (Phase 4). |
 | **What drives yield?** | **Fertilizer**, then **pesticide** (negative effect), then **rainfall**, with the same top three under all four importance methods. Farming practices account for 64 % of the model's reliance. |
 | **Is the relationship linear?** | **Mostly.** There is real but mild curvature: soil pH has an **optimum around 6–7.5**, rainfall **saturates**, and fertilizer shows **diminishing returns**. Polynomial regression ties XGBoost and beats plain linear regression by only 0.007 t/ha. |
-| **Do the findings hold on real data?** | **Largely not.** On real Indian data, **crop type carries 83 % of the importance**, tree models clearly win, and a **simple crop×state historical-average lookup beats every ML model**. |
+| **Do the findings hold on real data?** | **Largely not.** On real Indian data, crop identity and recent history carry the signal, tree models clearly win, and a **simple crop×state historical-average lookup beats every model of the original suite** (7.81 vs 8.12). Time-safe lag features beat it (**6.85**), but simply repeating last year's yield already gets **6.95**. |
 
 **The most important lesson:** a model that looks good on a clean benchmark can tell a completely different story on real data. And a strong, simple baseline, like looking up the historical average for that crop in that state, must always be checked before claiming that machine learning adds value.
 
@@ -149,6 +149,8 @@ Everything is inside scikit-learn `Pipeline` and `ColumnTransformer` objects, so
 
 On India, every penalty (polynomial, Ridge, Lasso) is instead tuned by a grid search on **time-ordered year blocks**, the same scheme as the evaluation, so no later year informs the choice of α.
 
+**India, Phase 4 (beating the look-up).** `src/india_features.py` adds time-safe features: target encodings of crop × state, crop and state (each row uses only strictly earlier years, smoothed toward the crop mean, smoothing tuned by CV); lags (last year's yield, the mean of the last 3 recorded years, the number of earlier years on record); and the year as a trend. `src/india_models.py` runs random forest, XGBoost, **LightGBM** and **HistGradientBoosting** on these features, plus a **hybrid** (time-safe look-up + a residual model), each with the same seeded `RandomizedSearchCV` budget (20 candidates, inner 3 year-block folds) inside the same 5 outer year blocks. *Forecasting assumption:* predicting year *t*, actual yields up to *t* − 1 are known; a strict variant that knows only 1997–2015 is reported alongside. The Kaggle pipeline also reports LightGBM and HistGradientBoosting as comparison rows only (`kaggle_extra_models.csv`); the deployed Kaggle model is unchanged.
+
 **Nested cross-validation** is used for the tree models. Their hyperparameter search runs *inside* each outer fold, just as RidgeCV and LassoCV choose α inside each fold. This keeps the comparison fair and avoids optimistic scores.
 
 ### 5.4 Evaluation
@@ -156,7 +158,8 @@ On India, every penalty (polynomial, Ridge, Lasso) is instead tuned by a grid se
 - 5-fold `KFold` cross-validation (shuffled, seed 42) on Kaggle; time-ordered year-block CV on India
 - Metrics: **RMSE** (the Kaggle competition metric), MAE and R²
 - An extra generalization check: **GroupKFold by region** (leave one region out)
-- An extra reference baseline for India: **crop×state historical-average lookup** (no machine learning)
+- Extra reference baselines for India (no machine learning): the **crop×state historical-average lookup** and **last year's yield**, scored on the same folds as the models
+- India model selection: lowest time-ordered CV RMSE, decided before the test years are scored once
 
 ### 5.5 Statistical diagnostics
 
@@ -250,10 +253,32 @@ XGBoost's test RMSE is 0.00006 t/ha lower than the polynomial's, a practical tie
 *Linear-model penalties are tuned on time-ordered folds (Phase 1). Before that fix, with folds that let later years inform α, the polynomial scored 9.48 and degree 3 9.84; Ridge is unchanged and Lasso improved from 9.55 to 9.52. RMSE is in the dataset's own yield units (mostly t/ha, but bales per hectare for cotton, jute, mesta and sannhemp). The spread is large because yields range across 55 very different crops. Full values for every model are in `results/tables/india_test.csv`.*
 
 **What the real data says:**
-- **Crop type dominates:** SHAP shares are Crop 83 %, State 5.5 %, log(Area) 4.9 %, Rainfall 4 %, Fertilizer 0.9 %, Pesticide 0.5 %.
+- **Crop type dominates the original models:** without history features, the model mostly learns which crop in which state a record is.
 - **Tree models clearly beat linear models,** because they can encode crop×state combinations.
-- **A simple historical-average lookup beats every model.** Most of the predictable signal is "what does this crop usually yield in this state," which a lookup table captures directly.
-- **Within a single crop, the models largely fail.** Per-crop R² is negative for 8 of the 10 most common crops. The pooled R² of 0.65 mostly reflects telling crops apart, not predicting good and bad seasons for a given crop.
+- **A simple historical-average lookup beats every model of the original suite.** Most of the predictable signal is "what does this crop usually yield in this state," which a lookup table captures directly.
+- **Within a single crop, the original models largely fail.** The pooled R² of 0.65 mostly reflects telling crops apart, not predicting good and bad seasons for a given crop. With lag features (below), per-crop R² is negative for only 1 of the 10 most common crops.
+
+#### Phase 4: can machine learning beat the look-up?
+
+Selected by time-ordered CV only (5 year blocks, 2001–2015 validated), then tested once on 2016–2020. Test RMSE assumes last year's actual yields are known; the strict column knows only 1997–2015.
+
+| Model | CV RMSE | Test RMSE | Strict test | Test R² |
+|---|---|---|---|---|
+| **Random Forest, all features (selected)** | **5.12 ± 2.88** | **6.85** | 9.65 | **0.75** |
+| Random Forest + lags | 5.14 ± 2.92 | 6.94 | 9.13 | 0.74 |
+| XGBoost, all features | 5.23 ± 2.61 | 7.04 | 8.78 | 0.74 |
+| HistGradientBoosting, all features | 5.25 ± 2.78 | 6.94 | 8.40 | 0.74 |
+| LightGBM, all features | 5.29 ± 2.92 | 7.05 | 9.12 | 0.74 |
+| Last year's yield (no ML) | 5.41 ± 3.62 | 6.95 | 7.72 | 0.74 |
+| Random Forest (original suite) | 5.89 ± 2.96 | 8.12 | 8.12 | 0.65 |
+| Crop×state lookup (no ML) | 5.97 ± 2.89 | 7.81 | 7.81 | 0.68 |
+| Hybrid: lookup + Random Forest residual | 6.06 ± 2.77 | 7.53 | 8.62 | 0.70 |
+
+**Ablation (Random Forest, same folds and budget):** base inputs 5.89 → + target encoding 6.05, **+ lags 5.14**, + year trend 5.81, all 5.12 (CV RMSE). **Lags are the group that matters.**
+
+**Honest verdict.** The selected model beats the lookup in CV and on the test years, and beats it for 48 of 54 crops and 26 of 30 states. But almost all of the gain comes from recent history: repeating last year's yield with no model scores 6.95, only 0.10 worse. If last year's yield is not known (strict variant), the model scores 9.65, **worse than the lookup**. On the 51 test rows with no earlier record of their crop × state, it is slightly worse than the lookup (1.07 vs 0.97). The explainability tables agree (Spearman ρ 0.78): the 3-year rolling mean yield carries 71 % of the mean |SHAP|, last year's yield 9 %, crop 10 %, state 7 %, and rainfall, fertilizer and pesticide under 0.5 % each.
+
+**Kaggle comparison rows** (not deployed): HistGradientBoosting CV 0.639 ± 0.009 (test 0.659), LightGBM CV 0.647 ± 0.008 (test 0.665), against the deployed polynomial's CV 0.635 ± 0.009. Neither beats it, let alone by more than 1 CV sd.
 
 ### 6.5 Ablation: do India's fertilizer and pesticide columns matter?
 
@@ -273,7 +298,7 @@ Because these columns are really a national per-year index (section 4B), the ful
 - **RQ1:** Yield is predictable to about ±0.65 t/ha (R² ≈ 0.69) on the benchmark. That is close to the data's irreducible noise level.
 - **RQ2:** On the benchmark: fertilizer, then pesticide, then rainfall, with consistent agreement across four methods. On real data: crop type dominates everything.
 - **RQ3:** The relationship is mostly linear with mild curvature (a pH optimum, rainfall saturation, fertilizer diminishing returns) and no interactions. Linear models are nearly optimal on the benchmark but completely miss the pH effect.
-- **RQ4:** The conclusions largely **do not transfer**. Real yields are driven by crop and location, flexible models are needed, and a simple lookup is the benchmark to beat.
+- **RQ4:** The conclusions largely **do not transfer**. Real yields are driven by crop, location and recent history, flexible models are needed, and a simple lookup is the benchmark to beat. Time-safe lag features beat it, but mostly by repeating recent yields.
 
 ---
 
@@ -295,7 +320,7 @@ A Streamlit app (`app.py` plus one script per page in `app_pages/`) makes the mo
 | **Model comparison** | Models ranked by CV RMSE with ± 1 sd error bars, predicted-vs-real and residual plots for the deployed or the best tree model, KPIs, and the full CV / train / test table. |
 | **Explain** ("Why the model decides") | Permutation importance with error bars for the deployed model or XGBoost; **do the methods agree?** (ranks under permutation, mean \|SHAP\| and \|coefficient\|, Spearman ρ between them, and a sentence generated from the numbers); the **soil pH paradox** card (correlation ≈ 0 but a hump-shaped effect); in Technical mode, standardised coefficients with 95 % bootstrap intervals, partial dependence with 50 ICE lines, and method notes. |
 | **Data explorer** | The key EDA from notebook 01 as interactive charts: yield and input distributions, a Pearson / Spearman correlation heatmap, yield by crop, region and season, and yield by harvest month (needs the raw Kaggle CSV; a setup card explains how to get it). |
-| **India** | The real-world check: lessons, look-up vs best model vs guessing, per-crop verdicts (Simple) and all five India tables (Technical). |
+| **India** | The real-world check. Simple: lessons, the selected model vs the look-up vs last year's yield, per-crop verdicts and a generated "how the model beats the look-up" card. Technical: CV and test KPIs, the verdict card, the feature-ablation chart with the look-up as a reference line, the 10 worst crops vs the look-up, the leaderboard (ranked by CV, test as a separate column), permutation importance and mean \|SHAP\| for the selected model, and every India table. |
 
 ![Predict page, Simple mode, light](docs/screenshots/p2_simple_light_predict_1440.png)
 
@@ -306,6 +331,10 @@ A Streamlit app (`app.py` plus one script per page in `app_pages/`) makes the mo
 ![Explain page: methods agree, soil pH paradox, coefficients, PDP/ICE (Technical, light)](docs/screenshots/p3_technical_light_explain_1440_full.png)
 
 ![What-if: two-factor heatmap and scenario A vs B (Technical, dark)](docs/screenshots/p3_technical_dark_whatif_1440_full.png)
+
+![India page: leaderboard, ablation and explainability (Technical, light)](docs/screenshots/p4_technical_light_india_1440.png)
+
+![India page: the selected model vs the look-up and last year's yield (Simple, dark)](docs/screenshots/p4_simple_dark_india_1440.png)
 
 ### The 90 % prediction range
 
@@ -336,7 +365,7 @@ CropYieldPrediction/
 │   ├── 01_eda.ipynb           # Distributions, correlations, curvature tests, synthetic-data evidence
 │   ├── 02_diagnostics.ipynb   # VIF, OLS inference, residuals, Breusch-Pagan, Lasso path
 │   ├── 03_explain.ipynb       # Coefficients, permutation importance, SHAP, agreement table
-│   └── 04_india.ipynb         # Real-data validation, per-crop analysis, lookup baseline, ablation
+│   └── 04_india.ipynb         # Real-data validation, per-crop analysis, lookup baseline, ablation, Phase 4 upgrade
 ├── src/
 │   ├── config.py              # Single source of truth: seeds, paths, column names, units
 │   ├── data.py                # Loading, cleaning, train/test split, CV splitter
@@ -347,6 +376,9 @@ CropYieldPrediction/
 │   ├── evaluate.py            # Cross-validation and hold-out metrics
 │   ├── explain.py             # Permutation importance and SHAP helpers
 │   ├── india.py               # India cleaning, time-split CV, lookup baseline, ablation
+│   ├── india_features.py      # Time-safe target encoding, lags and trend (earlier years only)
+│   ├── india_models.py        # India LightGBM / HistGB / RF / XGBoost searches and the look-up + residual hybrid
+│   ├── india_analysis.py      # Phase 4: leaderboard, ablation, selection by CV, error analysis, explainability
 │   ├── explain_tables.py      # Permutation, mean |SHAP|, bootstrap coefficients, per-group coverage
 │   └── pipeline.py            # End-to-end Kaggle pipeline (python -m src.pipeline)
 ├── tests/                     # pytest: data integrity, leakage guards, models, SHAP, India, conformal interval, display names, theme contrast, report, every app page (AppTest)
@@ -400,7 +432,12 @@ CropYieldPrediction/
 | `india_reference_baselines.csv` | Crop×state lookup comparison |
 | `india_per_crop_rmse.csv` | Per-crop error breakdown |
 | `india_ablation.csv` / `india_feature_ranges.csv` | Ablation study and range check |
-| `india_shap_shares.csv` | India best model's mean \|SHAP\| and share per feature (crop type 83 %) |
+| `india_shap_shares.csv` | Selected India model's mean \|SHAP\| share per feature |
+| `india_leaderboard.csv` / `india_selection.json` | Phase 4: every India model and reference ranked by CV, with test and strict test; the selection record |
+| `india_feature_ablation.csv` | Phase 4: base / + target encoding / + lags / + trend / all / hybrid, with the look-up row |
+| `india_error_by_group.csv` / `india_error_segments.csv` | Phase 4: test RMSE per crop and state, and for rows with no history or unseen crops |
+| `india_explain_permutation.csv` / `india_explain_shap.csv` | Phase 4: permutation importance (30 repeats) and mean \|SHAP\| for the selected model |
+| `kaggle_extra_models.csv` | LightGBM and HistGradientBoosting on Kaggle (comparison only, not deployed) |
 
 ---
 
@@ -489,16 +526,16 @@ python -m src.pipeline
 python -m src.india
 ```
 
-The first command runs the Kaggle pipeline end to end: split, cross-validation, nested tuning, the one-time test evaluation, figures and saved models. The second runs the India validation, including the ablation. Nested cross-validation is CPU-heavy. Actual timings from the final verification run (i7 13th-gen laptop, CPU only):
+The first command runs the Kaggle pipeline end to end: split, cross-validation, nested tuning, the one-time test evaluation, figures and saved models. The second runs the India validation, including the ablation. Nested cross-validation is CPU-heavy. Actual timings from the Phase 4 fresh-clone verification run (i7 13th-gen laptop on mains power, CPU only):
 
 | Step | Time |
 |---|---|
-| `python -m src.pipeline` | 12 min 37 s |
-| `python -m src.india` (including the ablation and the time-ordered penalty search) | 22 min 40 s |
-| 4 notebooks (`run.py build`, step 5) | 3 min 57 s |
-| **Full `python run.py build`** | **39 min 15 s** |
+| `python -m src.pipeline` (including the LightGBM / HistGradientBoosting comparison rows) | 25 min 49 s |
+| `python -m src.india` (original suite, ablation, penalty search and the Phase 4 searches) | 102 min 59 s |
+| 4 notebooks (`run.py build`, step 5) | 55 s |
+| **Full `python run.py build`** | **129 min 44 s** |
 
-Measured in Phase 1 on a fresh clone (Windows 11, Python 3.14.4, 16 logical CPUs). Installing `requirements-dev.txt` into a fresh venv took 5 min 59 s. The India tree searches take the longest.
+Measured on a fresh clone (Windows 11, Python 3.14.4, 16 logical CPUs). Inside the India step, the Phase 4 work took: model-family searches 23 min, feature ablation 38 min, final fits and test scoring 15 min, explainability 1 min. These searches take the longest, and on battery power the India step took about 3.4 h. The app needs none of this: it reads the committed tables.
 
 ### Step 5 — Execute the notebooks
 

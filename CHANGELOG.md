@@ -56,3 +56,17 @@ See `PROGRESS.md` (Phase 3 section) for the measured results.
 - **Loading states:** spinners with short messages around the first SHAP explanation, the heatmap, PDP/ICE, A vs B and the SHAP beeswarm.
 - **Conformal transparency:** per-group coverage table on the Predict page (Technical mode).
 - The Explain page's navigation label is "Explain" (heading "Why the model decides"): the long label made the top navigation measurably slower to lay out.
+
+## Phase 4 — India model upgrade
+
+See `PROGRESS.md` (Phase 4 section) for the measured results.
+
+- **Look-up audit:** the crop × state look-up uses only training years (and, in CV, each fold's training years), pools seasons, works on log1p and falls back to the overall training mean for the 147 test rows with an unseen pair (10 of them an unseen crop). No leakage, so no fix was needed; notebook 04 section 12a recomputes it.
+- **Time-safe India features** (`src/india_features.py`): target encoding of crop × state, crop and state from strictly earlier years only (smoothed, smoothing tuned by CV); lags (last year's yield, 3-year rolling mean, years on record); the year as a trend. Forecasting assumption: predicting year *t*, actual yields up to *t* − 1 are known. A strict variant (only 1997–2015 known) is reported for every model.
+- **Models** (`src/india_models.py`, `src/models.py`): LightGBM and HistGradientBoosting added; random forest and XGBoost re-run with the new features; a hybrid (time-safe look-up + residual model). Every model gets the same seeded `RandomizedSearchCV` budget (20 candidates, inner 3 year-block folds) inside the same 5 outer year blocks. Failed fits now raise instead of scoring NaN (`error_score="raise"`).
+- **Ablation, selection, error analysis and explainability** (`src/india_analysis.py`, run by `python -m src.india`): base / + target encoding / + lags / + trend / all / hybrid plus the look-up and last-year references; selection by CV RMSE only, then one test; per-crop and per-state errors against the look-up, rows with no history and the unseen crop; permutation importance (30 repeats) and mean |SHAP| for the selected model. New tables: `india_leaderboard.csv`, `india_feature_ablation.csv`, `india_error_by_group.csv`, `india_error_segments.csv`, `india_explain_permutation.csv`, `india_explain_shap.csv`, `india_selection.json`.
+- **Result:** random forest with all features selected (CV 5.12 vs 5.97 for the look-up; test 6.85 vs 7.81). Repeating last year's yield already scores 6.95, and the strict variant scores 9.65 (worse than the look-up).
+- **Kaggle comparison rows** (`kaggle_extra_models.csv`): HistGradientBoosting CV 0.639, LightGBM 0.647, against the deployed polynomial's 0.635. The deployed model, its features, splits, CV, conformal interval, metrics and model files are unchanged.
+- **India page:** leaderboard ranked by CV with test as its own column, ablation chart with the look-up reference line, a generated "how the model beats the look-up" card, the 10 worst crops vs the look-up, permutation and SHAP for the selected model, and the new tables. The Simple-mode lessons follow the selected model. Without the Phase 4 tables the page keeps the old view and shows a setup card.
+- `run.py` re-runs the India step when `india_selection.json` is missing.
+- Notebook 04: section 12 (audit, leaderboard, ablation, errors) and an explainability section that reads the saved tables.

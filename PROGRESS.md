@@ -1,4 +1,4 @@
-# PROGRESS — Phase 0 audit and showcase plan, Phase 1–3 results
+# PROGRESS — Phase 0 audit and showcase plan, Phase 1–4 results
 
 CSL236 AIML course project, Team 2: crop yield prediction (t/ha).
 Audit date: 2026-11-14. Commit audited: `511cdfe`.
@@ -7,6 +7,59 @@ Every number in this file was produced in this session by a fresh `git clone` of
 
 
 > **Screenshots:** since Phase 3 the per-phase captures in `screenshots/` (Phase 0 audit, `phase1/`, `phase2/`, `phase3/`) are git-ignored and local only; they were also removed from the unpushed history (with approval). A curated set is committed in `docs/screenshots/` (`p2_*`, `p3_*`). Paths below that start with `screenshots/` refer to the local folder.
+
+---
+
+## Phase 4 results (2026-11-15): India model upgrade
+
+Measured in the Phase 4 session: the real repo, then a fresh `git clone` with a fresh venv from `requirements-dev.txt` in a short `subst` path, and my own headless Chrome. The real repo's `.venv` was not touched. Tuning: seeded `RandomizedSearchCV`, 20 candidates, inner 3 year-block folds, inside the same 5 outer year blocks for every model. *Forecasting assumption:* predicting year *t*, actual yields up to *t* − 1 are known; a strict variant (only 1997–2015 known) is reported next to every test score.
+
+| Check | Result |
+|---|---|
+| `pip install -r requirements-dev.txt` (fresh clone) | OK, 14 min 13 s (two PyPI read timeouts; succeeded with `--timeout 300 --retries 10`) |
+| `python run.py check`, fresh clone, no raw data | ruff clean; 143 passed, 17 skipped (61 s); `git status` clean |
+| Full `python run.py build`, fresh clone | exit 0, **129 min 44 s**: Kaggle 25 min 49 s, India 102 min 59 s, notebooks 55 s. **Over the 60-min budget** (see issues) |
+| Kaggle unchanged | every existing metric max \|diff\| **0.0** (only `fit_time_s` differs); `best_overall.joblib` / `best_tree.joblib` byte-identical (sha256) |
+| India reproducible (two runs: real repo, fresh clone) | every India table identical apart from `fit_time_s` and the timing block in `india_selection.json` |
+| Original India suite | `india_cv.csv` max \|diff\| 0.0 against Phase 3 |
+| Notebooks | all 4 executed, **0 errors** |
+| Offline test (only localhost resolvable) | India page, 2 modes × 2 themes at 1440 and 768: 1,857 requests, 0 external |
+| Screenshots + geometry | India page, 2 modes × 2 themes × 6 widths: 24 shots, 5,409 requests, 0 external, **0 problems** |
+
+**Lookup audit:** built from training years only, seasons pooled. 147 test crop × state pairs never appear in training (10 rows of them are the one unseen crop); all fall back to the overall training mean of the log target (1.724). No leak, no fix needed.
+
+**Leaderboard (selected by CV only, test scored once):**
+
+| Model | CV RMSE | Test | Strict test | Test R² |
+|---|---|---|---|---|
+| **Random forest, all features (selected)** | **5.119 ± 2.882** | **6.848** | 9.648 | **0.751** |
+| Random forest + lags | 5.144 ± 2.921 | 6.939 | 9.130 | 0.744 |
+| XGBoost, all features | 5.225 ± 2.613 | 7.045 | 8.779 | 0.737 |
+| HistGradientBoosting, all features | 5.254 ± 2.780 | 6.941 | 8.397 | 0.744 |
+| LightGBM, all features | 5.292 ± 2.919 | 7.052 | 9.124 | 0.736 |
+| Last year's yield (no ML) | 5.405 ± 3.619 | 6.950 | 7.721 | 0.744 |
+| Random forest (original suite) | 5.886 ± 2.962 | 8.120 | 8.120 | 0.650 |
+| Crop × state lookup (no ML) | 5.967 ± 2.887 | 7.808 | 7.808 | 0.676 |
+| Hybrid: lookup + random forest residual | 6.062 ± 2.773 | 7.526 | 8.622 | 0.699 |
+
+**Ablation (random forest, CV RMSE):** base 5.886 → + target encoding 6.053, **+ lags 5.144**, + trend 5.806, all 5.119; hybrid 6.062; lookup 5.967. Lags are the group that matters (−0.74).
+
+**Verdict:** ML beats the lookup under the one-year-ahead assumption (CV 5.12 vs 5.97, test 6.85 vs 7.81, better for 48 of 54 crops and 26 of 30 states). But repeating last year's yield already scores 6.95. In the strict variant the model (9.65) is worse than the lookup. On the 51 test rows with no earlier crop × state record it is slightly worse too (log RMSE 1.070 vs 0.971); for unseen pairs it is better (0.696 vs 0.951; 147 rows).
+
+**Explainability (selected model):** permutation (30 repeats, test years): 3-year rolling mean 7.07, last year's yield 2.79, crop 0.378, state 0.038, log area 0.021. Mean |SHAP| (1,000 test rows): rolling mean 70.6 %, crop 9.9 %, last year 8.7 %, state 7.0 %, season 1.1 %. Spearman ρ 0.78. Year and pesticide have zero permutation importance (every test year is outside the training range).
+
+**Kaggle comparison rows (not deployed):** HistGradientBoosting CV 0.6392 ± 0.0090 (test 0.6593), LightGBM 0.6474 ± 0.0084 (test 0.6654), deployed polynomial 0.6349. Neither beats it by 1 CV sd; nothing switched.
+
+**Model file:** `models/india_best_overall.joblib` is 10.06 MB, git-ignored and not loaded by the app. Not committed (over 5 MB: needs approval).
+
+**Issues found and fixed:**
+- AppTest without the Phase 4 tables raised `KeyError 'random_forest + all'` → the page now falls back to the best test row; selection read from `india_selection.json`.
+- Simple-mode lesson claimed "crop matters most", which is false for the lag-based model → lessons now come from the SHAP shares (history vs crop).
+- The verdict did not compare the strict score with the lookup, and Simple mode lacked the last-year caveat → both added.
+- Ablation chart: the lookup label overlapped the hybrid's value label → label pinned top-right with more headroom.
+- Simple label "Chosen model (Forest of decision tre…" truncated → "Chosen model"; permutation axis title clipped at 768 px → "Rise in test RMSE".
+- Screenshot geometry check reported "header covers content" on every shot → false positive (container top padding was ignored); check fixed, then 0 problems.
+- **Not fixed: compute budget.** The first India run on battery took 3.4 h; on mains power the full build is 2 h 10 min, against a ~60 min target. The 20-candidate budget was kept so the results stay as reported; reducing it means rerunning and re-reporting.
 
 ---
 
@@ -533,11 +586,11 @@ The Pipeline fix itself is already done. This phase hardens the code around it.
 
 ### Phase 4: model upgrades, compared fairly (≈ 8–12 h)
 
-- [ ] Add LightGBM and sklearn `HistGradientBoosting` to the same nested-CV harness
-- [ ] Optuna (or a wider RandomizedSearch) under the same outer folds; report CV mean ± std and test once
-- [ ] India: crop×state historical-mean feature (computed inside folds) to try to beat the lookup
-- [ ] Statistical tie check (paired fold differences) so "tie" claims are backed by numbers
-- [ ] Update tables and figures; keep model selection by CV only
+- [x] Add LightGBM and sklearn `HistGradientBoosting` to the same nested-CV harness (Phase 4: Kaggle comparison rows + India)
+- [x] Optuna (or a wider RandomizedSearch) under the same outer folds; report CV mean ± std and test once (Phase 4: seeded RandomizedSearchCV, 20 candidates)
+- [x] India: crop×state historical-mean feature (computed inside folds) to try to beat the lookup (Phase 4: earlier-years target encoding + lags; beats it only via lags)
+- [ ] Statistical tie check (paired fold differences) so "tie" claims are backed by numbers (deferred: not part of the Phase 4 brief)
+- [x] Update tables and figures; keep model selection by CV only (Phase 4)
 
 ### Phase 5: deploy, README, demo script (≈ 5–7 h)
 

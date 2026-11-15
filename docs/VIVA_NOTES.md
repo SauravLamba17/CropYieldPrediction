@@ -100,3 +100,37 @@ No. The guarantee is "at least 90 % on average over many datasets", not on one f
 
 **Q: Is it equally good for every crop and region?**
 Not exactly, and the app shows this (Predict page, Technical mode). On the test fields, coverage by crop runs from **85.9 %** (Rice) to **91.1 %** (Barley), and by region from **85.9 %** (West) to **92.0 %** (North). No group is below 85 %. One width (± 1.04 t/ha) is used for every field, so groups whose yields are harder to predict are covered less and easier ones more. A per-group width (Mondrian conformal) would even this out; it was left out to keep one simple, global method.
+
+---
+
+## India model upgrade (Phase 4)
+
+**Q: How exactly is the crop × state look-up computed, and could it leak?**
+For every test row it predicts the average of log(1 + yield) over all **training-year** rows (1997–2015) of the same crop in the same state, transformed back (so it is a geometric-style mean, matching the log-scale models). All seasons are pooled. A crop × state pair never seen in training falls back to the overall training mean (not the crop's mean). That happens for **147** test rows, including the **10** rows of the unseen crop. It reads no test-year yield, so it does not leak; the audit (notebook 04, section 12) recomputes it from the saved split. On the 5 time-ordered CV folds it scores **5.97 ± 2.89**, and on 2016–2020 **7.81** (unchanged).
+
+**Q: What is target encoding, and why does the naive version leak?**
+It replaces a category (crop, state, crop × state) with the average yield seen for it. The naive version averages over all training rows, including the row being encoded. The model then learns to trust an encoding that already contains the answer, and it does worse on new data. Here the encoding is **time-safe**: a row of year *t* is encoded only from rows of years before *t*. Training rows get an expanding window, CV validation rows only their fold's earlier training years, and test rows only 1997–2015. It is smoothed (crop × state toward the crop, crop and state toward the overall mean), and the smoothing strength is tuned by CV. A test checks that changing a year's targets never changes that year's own encodings.
+
+**Q: Your lag features use last year's yield. Isn't that cheating on the test years?**
+It is the forecasting assumption, stated in the code and docs: *when predicting year t, actual yields up to t − 1 are known* (a one-year-ahead forecast, as a ministry would make each season). Lags are computed only from strictly earlier years. The models are fitted once on 1997–2015 and never refitted on test years. Under this assumption a 2018 forecast may use the 2017 actual yield. Because that uses test-year yields as inputs (never as training data), every model is also scored in a **strict** variant where only 1997–2015 is known for all five test years; both are reported. A test scrambles all yields from year *t* onward and checks that the lags of year-*t* rows do not change.
+
+**Q: What is the hybrid?**
+Take the look-up's prediction and train a tree model (the best family on all features, here random forest) on what it gets wrong (actual − look-up, on the log scale). The prediction is look-up + predicted residual. The look-up inside it is also time-safe: a training row's offset comes from earlier years only, so the residuals the model learns from look like the residuals it will see on new years. It scored CV RMSE **6.06**, slightly worse than the look-up alone (5.97): once the look-up has removed each crop × state level, little is left for the forest to learn from the other inputs.
+
+**Q: How did you choose the final India model without peeking at the test years?**
+Same rule as Kaggle: lowest time-ordered CV RMSE, on the same 5 year-block folds for every model, with every model's search re-tuned inside each fold (nested CV, 20 configurations, seeded). The look-up is scored on the same folds. The rule was fixed in code before the test score was computed: if no model beats the look-up's CV RMSE, Random Forest stays deployed and the look-up is reported as the best predictor. Every candidate is then evaluated once on 2016–2020; nothing is re-selected afterwards.
+
+**Q: What did the ablation show?**
+Random forest, same folds and search budget, CV RMSE: base inputs 5.89, + target encoding 6.05, **+ lags 5.14**, + year trend 5.81, all features 5.12. Lags are the only group that matters on their own: they cut CV RMSE by 0.74. Target encoding alone does not help in CV, most likely because the random forest already learns crop × state levels from the one-hot columns. The trend helps a little.
+
+**Q: So did machine learning beat the look-up?**
+Yes, under the one-year-ahead assumption. The selected random forest (all features) scores CV 5.12 vs 5.97 and test 6.85 vs 7.81 (R² 0.75 vs 0.68). It beats the look-up for 48 of 54 crops and 26 of 30 states. But be honest about where the gain comes from: repeating last year's yield, with no model at all, scores 6.95, so the forest adds only 0.10 on top. In the strict variant (only 1997–2015 known), it scores 9.65, **worse** than the look-up. On the 51 test rows with no earlier record of their crop × state, it is slightly worse than the look-up (1.07 vs 0.97). The real finding is that yields persist from year to year, and the weather and input columns add almost nothing.
+
+**Q: Why is the look-up so hard to beat without history?**
+Crops differ in yield by two orders of magnitude, and each crop × state has a stable level. The other inputs carry little signal: rainfall is one annual number per state, and fertilizer and pesticide are one national number per year (every test year's pesticide is above the training maximum, so trees cannot use it). Without lags, a model can at best rediscover the look-up table, and it then pays for its extra variance.
+
+**Q: What does the selected model rely on?**
+Mean |SHAP| on 1,000 test rows: the 3-year rolling mean yield 71 %, crop 10 %, last year's yield 9 %, state 7 %, and rainfall, fertilizer and pesticide under 0.5 % each. Permutation importance (30 repeats, test years) gives the same top input: shuffling the rolling mean raises RMSE by 7.07. The two rankings agree with Spearman ρ 0.78. The year and pesticide have exactly zero permutation importance, because every test year lies beyond the training range.
+
+**Q: Did LightGBM or HistGradientBoosting change the Kaggle result?**
+No. They were added as comparison rows only, with the same folds and search budget: HistGradientBoosting CV 0.639 ± 0.009 and LightGBM 0.647 ± 0.008, against the deployed polynomial's 0.635 ± 0.009. Neither beats it, so the deployed model, its metrics and its file are unchanged.
