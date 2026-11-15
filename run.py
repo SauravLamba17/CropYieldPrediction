@@ -2,6 +2,7 @@
 
     python run.py            dev (default): set up whatever is missing, then launch the app
     python run.py build      force a full rebuild: pipeline, India (if CSV present), notebooks
+    python run.py build --fast   the same without the India step (committed India tables reused)
     python run.py check      ruff + pytest
     python run.py app        launch the app only
 
@@ -289,14 +290,23 @@ def cmd_dev(args: argparse.Namespace) -> None:
 
 
 def cmd_build(args: argparse.Namespace) -> None:
-    """Force a full rebuild of every result, then execute all notebooks."""
-    total = 5
+    """Force a rebuild of every result, then execute all notebooks.
+
+    --fast skips the India step (its tree searches and ablation take about 105 min) and keeps
+    the committed India tables; everything else is the same as the full build.
+    """
+    fast = getattr(args, "fast", False)
+    total = 4 if fast else 5
     step_environment(1, total)
     step_kaggle_data(2, total)
     step_pipeline(3, total, force=True)
-    step_india(4, total, force=True)
-    step_notebooks(5, total)
-    print("\nFull rebuild complete. Start the app with: python run.py app")
+    if fast:
+        print("      India validation skipped (--fast): the committed India tables are reused.")
+    else:
+        step_india(4, total, force=True)
+    step_notebooks(total, total)
+    kind = "Fast rebuild (India tables reused)" if fast else "Full rebuild"
+    print(f"\n{kind} complete. Start the app with: python run.py app")
 
 
 def cmd_check(args: argparse.Namespace) -> None:
@@ -331,6 +341,9 @@ def main() -> int:
     )
     parser.add_argument(
         "--no-browser", action="store_true", help="do not open a browser tab (dev/app)"
+    )
+    parser.add_argument(
+        "--fast", action="store_true", help="build: skip the India searches, reuse its tables"
     )
     args = parser.parse_args()
     commands = {"dev": cmd_dev, "build": cmd_build, "check": cmd_check, "app": cmd_app}
