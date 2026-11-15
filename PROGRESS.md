@@ -31,7 +31,7 @@ The real repo's `.venv` was not modified, and nothing on port 8501 was touched.
 | (c) Fresh clone, `python run.py build --fast` | exit 0 in **33 min 35 s** (Kaggle pipeline 31 min 31 s, notebooks 2 min 04 s; a Linux package-size measurement shared the CPU for about 10 min of it). Every existing Kaggle metric max \|diff\| **0.0** (only `fit_time_s` differs); `best_overall.joblib` / `best_tree.joblib` byte-identical (sha256); India tables untouched; all 4 notebooks 0 errors |
 | Tie-check reproduction | the per-fold scores reproduce every committed CV mean and std (max \|diff\| 4.4 × 10⁻¹⁶); rerun took 21 min 11 s (sharing the CPU with page tests) |
 | Missing tables | every one of the 30 results files removed in turn, and all at once: all 7 pages, both modes, no exception; the health card names the missing files |
-| Screenshots | Model comparison and India (tie card), and the health card, at 1366 and 768 px, light and dark, both modes: 20 shots, **0 geometry problems**, saved to `screenshots/phase5/` |
+| Screenshots | Model comparison and India (tie card), and the health card, at 1366 and 768 px, light and dark, both modes: 24 shots (16 + 8 of the health card), **0 geometry problems**, saved to `screenshots/phase5/` |
 | CI workflow | YAML parsed and checked (triggers, Python 3.12, pip cache, no secrets, no Kaggle download). actionlint is not installed here. The first real run happens on push |
 | Real repo `python run.py check` (with raw data) | ruff clean; **174 passed** (raw data present) |
 
