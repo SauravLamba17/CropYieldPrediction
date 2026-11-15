@@ -1,7 +1,7 @@
-# Development tools on top of the runtime set: notebooks (jupyter, nbconvert, ipykernel),
+# Development tools on top of the pipeline set: notebooks (jupyter, nbconvert, ipykernel),
 # lint and tests (ruff, pytest) and the Kaggle download client. Same exact versions as
 # requirements-lock-windows.txt; Windows-only packages carry a platform marker.
--r requirements.txt
+-r requirements-pipeline.txt
 argon2-cffi==25.1.0
 argon2-cffi-bindings==26.1.0
 arrow==1.4.0

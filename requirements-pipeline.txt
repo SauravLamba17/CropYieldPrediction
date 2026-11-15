@@ -1,0 +1,9 @@
+# Pipelines and notebooks: the app runtime plus statsmodels (OLS, VIF) and seaborn (EDA figures),
+# with their dependencies. Same exact versions as requirements-lock-windows.txt.
+-r requirements.txt
+formulaic==1.2.2
+interface_meta==2.0.1
+patsy==1.0.3
+seaborn==0.13.2
+statsmodels==0.15.0
+wrapt==2.5.0
