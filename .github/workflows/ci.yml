@@ -1,0 +1,76 @@
+# Linux proof: lint + the full test suite on the pipeline/dev set, and a smoke job that installs
+# ONLY requirements.txt (what Streamlit Community Cloud installs) and renders every page.
+# No Kaggle download and no secrets: raw data is git-ignored, so the tests that need it skip,
+# exactly as on a fresh clone. The app reads the committed models, tables and parquet splits.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-test:
+    name: Lint and tests (requirements-dev.txt)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-pipeline.txt
+            requirements-dev.txt
+      - name: Install
+        run: python -m pip install -r requirements-dev.txt
+      - name: Ruff
+        run: python -m ruff check src tests ui app_pages app.py run.py
+      - name: Pytest
+        env:
+          PYTHONUTF8: "1"
+        run: python -m pytest -q -rs
+
+  runtime-smoke:
+    name: App smoke test (requirements.txt only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install the runtime set only (+ pytest to drive AppTest)
+        run: python -m pip install -r requirements.txt pytest==9.1.1
+      - name: Pipeline-only packages are absent
+        run: |
+          python - <<'EOF'
+          import importlib.util, sys
+          present = [m for m in ("statsmodels", "seaborn", "jupyter", "nbconvert")
+                     if importlib.util.find_spec(m)]
+          print("pipeline-only packages installed:", present or "none")
+          sys.exit(1 if present else 0)
+          EOF
+      - name: No NVIDIA libraries (CPU-only xgboost)
+        run: |
+          python -m pip list --format=freeze | tee installed.txt
+          if grep -qi nvidia installed.txt; then echo "NVIDIA packages installed"; exit 1; fi
+      - name: Every page renders, both modes, plus the health card
+        env:
+          PYTHONUTF8: "1"
+        run: >-
+          python -m pytest -q -rs tests/test_app_pages.py
+          tests/test_cloud_ready.py::test_missing_tables_show_a_health_card_not_a_traceback
+          tests/test_cloud_ready.py::test_runtime_requirements_cover_every_app_import
