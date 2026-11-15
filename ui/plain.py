@@ -521,7 +521,7 @@ def kaggle_tie_note(p_values: dict[str, float], distinguishable: dict[str, bool]
     if not p_values:
         return ""
     ties = [n for n in p_values if not distinguishable[n]]
-    shown = ", ".join(f"{n} (p = {p_values[n]:.2f})" for n in p_values)
+    shown = " or ".join(f"{n} (p = {p_values[n]:.2f})" for n in p_values)
     if len(ties) == len(p_values):
         return f"On the 5 CV folds the selected model is not statistically distinguishable from {shown}: a tie."
     return f"Paired t-test on the 5 CV folds against {shown}."
