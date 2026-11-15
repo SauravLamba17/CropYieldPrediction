@@ -46,8 +46,9 @@ def test_drivers_headline_marks_negative_association():
 
 def test_india_sentences():
     assert "<b>83%</b>" in plain.lesson_crop(0.8337)[1]
-    big, text = plain.lesson_lookup(7.8075, 8.1195, beats_every_model=True)
-    assert big == "7.81 vs 8.12" and "It beats every model." in text
+    big, text = plain.lesson_lookup(7.8075, 8.1195, lookup_wins=True)
+    assert big == "7.81 vs 8.12" and "It beats the chosen model." in text
+    assert "The chosen model beats it." in plain.lesson_lookup(7.8075, 7.0, lookup_wins=False)[1]
     assert "<b>8 of the 10</b>" in plain.lesson_seasons(8, 10)[1]
     assert " beats the best model" in plain.india_headline(7.8075, 8.1195, 0.8337)
     assert "does not beat" in plain.india_headline(9.0, 8.1195, 0.8337)
@@ -57,7 +58,9 @@ def test_india_sentences_never_claim_t_per_ha():
     """India yields mix units across crops (bales for cotton/jute), so no India text says t/ha."""
     texts = [
         plain.india_headline(7.8075, 8.1195, 0.8337),
-        plain.lesson_lookup(7.8075, 8.1195, beats_every_model=True)[1],
+        plain.lesson_lookup(7.8075, 8.1195, lookup_wins=True)[1],
+        *[plain.india_verdict(VERDICT, simple)[1] for simple in (True, False)],
+        *[plain.india_phase4_headline(VERDICT, simple) for simple in (True, False)],
         plain.lesson_crop(0.8337)[1],
         plain.lesson_seasons(8, 10)[1],
     ]
@@ -83,3 +86,33 @@ def test_curve_shapes_and_captions():
     assert shape == "rises then levels off" and 5.5 < at <= 6.0
     rise = plain.curve_caption("Fertilizer", "kg/ha", [50, 300], [4.547, 7.599])
     assert "<b>+3.05 t/ha</b> from lowest to highest" in rise
+
+
+VERDICT = {"model": "XGBoost (all features)", "model_cv": 5.2, "lookup_cv": 5.97, "model_test": 7.1,
+           "lookup_test": 7.81, "persistence_test": 6.95, "strict_test": 8.4, "beats_cv": True,
+           "group": "lags", "gain": 1.1}
+
+
+def test_india_verdict_branches():
+    title, text = plain.india_verdict(VERDICT, simple=False)
+    assert title == "How the model beats the look-up"
+    assert "<b>5.20</b>" in text and "<b>5.97</b>" in text and "<b>lags</b>" in text
+    assert "A caution" in text and "<b>6.95</b>" in text  # last year's yield is better than the model
+    assert "<b>8.40</b>" in text  # the strict (2015-origin) score is always reported
+    assert plain.india_verdict({**VERDICT, "model_test": 8.0}, False)[0].startswith("Better in cross-validation")
+    lost = {**VERDICT, "beats_cv": False, "model_cv": 6.5, "model_test": 8.1}
+    title, text = plain.india_verdict(lost, False)
+    assert title == "Why can't machine learning beat a look-up?" and "persist strongly" in text
+    calmer = {**VERDICT, "persistence_test": 7.5}
+    assert "adds <b>0.40</b>" in plain.india_verdict(calmer, False)[1]
+    assert "worse than the look-up (7.81)" in text  # strict 8.40 >= look-up 7.81
+    assert "still better than the look-up" in plain.india_verdict({**VERDICT, "strict_test": 7.5}, False)[1]
+    simple = plain.india_verdict({**VERDICT, "model_test": 6.8}, True)[1]
+    assert "nearly as good as" in simple and "last year's real yield is known" in simple
+
+
+def test_lesson_crop_names_the_recent_past_when_lags_lead():
+    big, text = plain.lesson_crop(0.10, history_share=0.80)
+    assert big == "80%" and "recent past" in text and "<b>10%</b>" in text
+    assert "which crop you grow" in plain.lesson_crop(0.8337, history_share=0.0)[1]
+    assert "struggle" not in plain.lesson_seasons(1, 10)[1]

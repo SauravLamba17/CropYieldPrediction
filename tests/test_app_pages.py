@@ -72,3 +72,26 @@ def test_explain_page_without_tables_shows_a_setup_card(tmp_path, monkeypatch):
     data.load_table.clear()
     assert not at.exception
     assert "explain_tables" in " ".join(str(h.proto.body) for h in at.get("html"))
+
+
+def test_india_page_without_phase4_tables(tmp_path, monkeypatch):
+    """With only the pre-Phase-4 India tables, the page still renders and says how to build the rest."""
+    import shutil
+
+    from ui import data
+
+    for name in ("india_test", "india_reference_baselines", "india_shap_shares", "india_per_crop_rmse"):
+        shutil.copy(config.TABLES_DIR / f"{name}.csv", tmp_path)
+    at = AppTest.from_file(str(config.ROOT / "app.py"), default_timeout=TIMEOUT)
+    at.run()
+    monkeypatch.setattr(config, "TABLES_DIR", tmp_path)
+    for mode in ("Technical", "Simple"):
+        data.load_table.clear()
+        data.load_json.clear()
+        at.segmented_control(key="mode").set_value(mode).run()
+        at.switch_page("app_pages/india.py").run()
+        assert not at.exception, [e.value for e in at.exception]
+    html = " ".join(str(h.proto.body) for h in at.get("html"))
+    assert "not built yet" in html
+    data.load_table.clear()
+    data.load_json.clear()
