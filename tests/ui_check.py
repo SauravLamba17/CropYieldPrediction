@@ -62,9 +62,14 @@ GEOMETRY_JS = r"""
 })()
 """
 
+# Ready = the app's own content has drawn: its title is visible and its background colour is
+# applied. On Cloud, Streamlit reports a page loaded ~1-1.5 s before anything is drawn.
 READY_JS = r"""
 (() => {
-  if (!document.querySelector('[data-testid="stApp"]')) return false;
+  const app = document.querySelector('[data-testid="stApp"]');
+  if (!app || !BACKGROUNDS.includes(getComputedStyle(app).backgroundColor)) return false;
+  const title = document.querySelector(".app-title");
+  if (!title || title.getBoundingClientRect().height === 0) return false;
   if (document.querySelector('[data-testid="stStatusWidget"] [data-testid="stSpinner"]')) return false;
   if (document.querySelector('[data-testid="stSkeleton"], [data-testid="stSpinner"]')) return false;
   if (!document.querySelector('[data-testid="stMainBlockContainer"] [data-testid="stVerticalBlock"]'))
@@ -72,7 +77,7 @@ READY_JS = r"""
   return [...document.querySelectorAll('[data-testid="stVegaLiteChart"]')]
     .every(c => c.querySelector("svg, canvas"));
 })()
-"""
+""".replace("BACKGROUNDS", json.dumps(list(BACKGROUND.values())))
 
 NAV_JS = r"""
 (async () => {
