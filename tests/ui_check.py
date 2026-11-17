@@ -4,7 +4,8 @@
 
 Per page it flags: an error box, sideways scrolling, content off the right edge, clipped or
 ellipsis-truncated text (any element, wrapper DIVs included), an undrawn chart, the wrong
-theme, and navigation that cannot be reached (top links from 768 px, the "»" sidebar below).
+theme, and navigation that cannot be reached (top links from 768 px, the "»" sidebar below):
+5 pages in Simple mode, all 7 with "Show details".
 It also opens /whatif and /india with empty storage on a dark-mode system: both must be light.
 Drives Chrome or Edge over the DevTools protocol with `websockets` (installed with Streamlit).
 Exit code 1 if anything is flagged. Not part of pytest's run (needs a server and a browser);
@@ -26,6 +27,7 @@ from pathlib import Path
 from websockets.sync.client import connect
 
 PAGES = ["", "predict", "whatif", "models", "explain", "explorer", "india"]
+SIMPLE_NAV = 5  # Simple mode lists 5 pages; "Show details" lists all 7
 BACKGROUND = {"light": "rgb(246, 244, 236)", "dark": "rgb(18, 22, 17)"}
 
 # Returns a list of problem strings for the current page (empty = clean).
@@ -62,12 +64,14 @@ GEOMETRY_JS = r"""
 })()
 """
 
-# Ready = the app's own content has drawn: its title is visible and its background colour is
-# applied. On Cloud, Streamlit reports a page loaded ~1-1.5 s before anything is drawn.
+# Ready = the app's own content has drawn: its title is visible, its background colour is
+# applied and the page script has finished. On Cloud, Streamlit reports a page loaded ~1-1.5 s
+# before anything is drawn; on a cold start the title shows while Predict is still loading.
 READY_JS = r"""
 (() => {
   const app = document.querySelector('[data-testid="stApp"]');
   if (!app || !BACKGROUNDS.includes(getComputedStyle(app).backgroundColor)) return false;
+  if (app.getAttribute("data-test-script-state") === "running") return false;  // page script still going
   const title = document.querySelector(".app-title");
   if (!title || title.getBoundingClientRect().height === 0) return false;
   if (document.querySelector('[data-testid="stStatusWidget"] [data-testid="stSpinner"]')) return false;
@@ -210,16 +214,19 @@ def main() -> int:
                             time.sleep(0.5)
                         else:
                             b.js("[...document.querySelectorAll('.st-key-mode button')]"
-                                 ".find(x => x.textContent.includes('Technical')).click()")
+                                 ".find(x => x.textContent.includes('Show details')).click()")
                             time.sleep(0.6)
                         ready = b.wait_ready()
                         problems = ([] if ready else ["page did not finish loading"]) + check_page(b, theme)
-                        if mode == "technical":   # nav last: below 768 px it opens the sidebar
-                            links = b.js(NAV_JS)
-                            if links != len(PAGES):
-                                problems.append(f"navigation: {links} of {len(PAGES)} links reachable")
                         shot = out / f"{mode}_{theme}_{page or 'overview'}_{width}.png"
-                        b.screenshot(shot)
+                        if mode == "simple":   # clean screenshot first: below 768 px the nav check opens the sidebar
+                            b.screenshot(shot)
+                        expected = SIMPLE_NAV if mode == "simple" else len(PAGES)
+                        links = b.js(NAV_JS)
+                        if links != expected:
+                            problems.append(f"navigation: {links} links reachable, expected {expected}")
+                        if mode == "technical":   # with the sidebar open below 768 px
+                            b.screenshot(shot)
                         if mode == "technical" and width < 768:   # close the sidebar again
                             b.js("document.querySelector('[data-testid=\"stSidebarCollapseButton\"] "
                                  "button')?.click()")
