@@ -133,7 +133,7 @@ def test_missing_tables_show_a_health_card_not_a_traceback(tmp_path, monkeypatch
     assert not at.exception
     html = " ".join(str(h.proto.body) for h in at.get("html"))
     assert f"Health check: {len(data.APP_TABLES)} results tables are missing" in html
-    for mode in ("Simple", "Technical"):
+    for mode in ("Simple", "Show details"):
         at.segmented_control(key="mode").set_value(mode).run()
         for page in ("overview", "predict", "whatif", "models", "explain", "explorer", "india"):
             at.switch_page(f"app_pages/{page}.py").run()

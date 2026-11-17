@@ -25,7 +25,7 @@ def app():
     return at
 
 
-@pytest.mark.parametrize("mode", ["Simple", "Technical"])
+@pytest.mark.parametrize("mode", ["Simple", "Show details"])
 @pytest.mark.parametrize("page", PAGES)
 def test_page_renders(app, page, mode):
     app.segmented_control(key="mode").set_value(mode).run()
@@ -50,7 +50,7 @@ def test_preset_changes_inputs(app):
 
 
 def test_scenario_b_changes_the_gap(app):
-    app.segmented_control(key="mode").set_value("Technical").run()
+    app.segmented_control(key="mode").set_value("Show details").run()
     app.switch_page("app_pages/whatif.py").run()
     app.button(key="ab_reset").click().run()
     app.slider(key="b_fertilizer_amount").set_value(app.session_state["in_fertilizer_amount"] + 50).run()
@@ -85,7 +85,7 @@ def test_india_page_without_phase4_tables(tmp_path, monkeypatch):
     at = AppTest.from_file(str(config.ROOT / "app.py"), default_timeout=TIMEOUT)
     at.run()
     monkeypatch.setattr(config, "TABLES_DIR", tmp_path)
-    for mode in ("Technical", "Simple"):
+    for mode in ("Show details", "Simple"):
         data.load_table.clear()
         data.load_json.clear()
         at.segmented_control(key="mode").set_value(mode).run()

@@ -17,7 +17,7 @@ from src import config
 from src.data import load_split
 
 APP_VERSION = "2.0.0"
-SIMPLE, TECHNICAL = "Simple", "Technical"
+SIMPLE, TECHNICAL = "Simple", "Show details"  # the mode switch; Simple is the default
 PRESETS = ["Typical field", "Ideal field", "Drought year", "Low-input farm"]
 CURVE_POINTS = 40  # what-if and response curves sweep each factor over 40 values
 CURVE_SAMPLE = 300  # response curves average the prediction over 300 training fields
