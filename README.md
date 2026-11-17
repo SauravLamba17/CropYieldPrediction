@@ -12,9 +12,9 @@
 | **Real Indian data** ([Crop Yield in Indian States 1997–2020](https://data.mendeley.com/datasets/ncw2vbcgnk), built from Indian government statistics; 19,412 records, test years 2016–2020) | A random forest with time-safe history features scores **6.85**, against **7.81** for a crop × state look-up, when forecasting one year ahead. But simply repeating last year's yield already scores **6.95** (a statistical tie in CV, p = 0.68). With only 1997–2015 known, the model scores **9.65**, worse than the look-up. |
 
 <p>
-  <img src="docs/screenshots/p2_simple_light_overview_1920.png" alt="Overview page" width="32%">
-  <img src="docs/screenshots/p2_simple_light_predict_1440.png" alt="Predict page with the 90% range" width="32%">
-  <img src="docs/screenshots/p4_technical_light_india_1440.png" alt="India page, Technical mode" width="32%">
+  <img src="docs/screenshots/p9_simple_light_home_1366.png" alt="Home page, Simple mode" width="32%">
+  <img src="docs/screenshots/p9_simple_light_predict_1366.png" alt="Predict page, Simple mode: 4 inputs and the result in one sentence" width="32%">
+  <img src="docs/screenshots/p9_simple_light_what_matters_1366.png" alt="What matters page, Simple mode" width="32%">
 </p>
 
 **Run it:** `pip install -r requirements.txt` then `streamlit run app.py` (app only), or double-click `start.bat` (everything). Deploying: [`docs/DEPLOY.md`](docs/DEPLOY.md). Demo: [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md). Viva Q&A: [`docs/VIVA_NOTES.md`](docs/VIVA_NOTES.md).
@@ -323,23 +323,31 @@ Because these columns are really a national per-year index (section 4B), the ful
 
 A Streamlit app (`app.py` plus one script per page in `app_pages/`) makes the model explorable without any code, including for readers with no technical background. The design is "Field & Harvest": parchment and crop-green in light mode, a deep field-green in dark mode, with Manrope headings, Inter text and IBM Plex Mono numbers. The fonts are bundled in `static/fonts/` (OFL), so it looks the same on an offline projector laptop, and Streamlit's usage statistics are off in `.streamlit/config.toml`. Locally the app makes no outside requests. On Streamlit Community Cloud, the platform still sends Streamlit's own usage statistics, which the repo can't switch off. Cloud's own wrapper page around the app also contacts outside hosts (see `docs/DEPLOY.md`).
 
-- **Pages** (top navigation): Overview · Predict · What-if · Model comparison · Explain · Data explorer · India.
-- **Simple / Technical** switch at the top right, kept across pages. Simple uses plain words and everyday names ("Typical error" instead of RMSE); Technical shows the exact metrics, tables and SHAP waterfall.
+- **Simple first.** A first visit opens in **Simple** mode with 5 pages in the top navigation: Home · Predict · What-if · What matters · Real-world check. Simple mode uses everyday words only ("typical error", "how much it explains", "how much each factor pushed it"; `tests/test_phase9.py` scans every Simple page for technical terms), shows at most 2 charts per page, and puts a one-line takeaway above each chart, generated from the numbers.
+- **Simple | Show details** switch at the top right, kept across pages. **Show details** adds the exact metrics, tables, the SHAP waterfall, every other chart and 2 more pages: Model comparison · Data explorer. Those two pages also open from a direct link (`/models`, `/explorer`) in Simple mode.
 - **Light and dark mode** from the ⋮ menu (Light / Dark / System). The first visit opens in light mode, which is safer on projectors; the menu choice is remembered.
 - **Responsive** from 768 to 1920 px. KPI cards reflow 4 → 2 → 1 per row and their numbers never wrap; the navigation folds extra pages into a "more" menu on narrow screens.
 - Every page opens with an **"In simple words"** card generated from the saved numbers (`ui/plain.py`), and every name and unit comes from one mapping (`ui/labels.py`), so no column name such as `soil_ph` ever appears.
 
 | Page | What it shows |
 |---|---|
-| **Overview** | The question, the three headline numbers read from the results tables (best CV RMSE, test RMSE, test R²) plus the 90 % range, a "how it works" pipeline strip (data → preprocess → 8 models → cross-validate → test once → explain), the data sources with links, and a glossary. |
-| **Predict** | Inputs grouped and colour-coded (soil · weather · farming · context), scenario presets, the prediction with its **90 % range** (gauge ring in Simple mode), "Why this prediction" (SHAP bars, or an interactive **SHAP waterfall** in Technical mode), the 90 % range's coverage per crop and region (Technical mode), and **Download CSV / PDF** report buttons. |
-| **What-if** | The prediction for the current field as one factor sweeps its range (90 % band shaded); a **two-factor heatmap** (25 × 25 grid over any two inputs, current scenario and best cell marked, never beyond the observed data range); **Scenario A vs B** with both predictions and 90 % ranges, the gap in t/ha and %, a SHAP chart of which inputs explain the gap, Swap / Reset buttons and a CSV export; plus what drives yield overall (factor groups, feature ranking, response curves, SHAP beeswarm in Technical mode). |
-| **Model comparison** | Models ranked by CV RMSE with ± 1 sd error bars, predicted-vs-real and residual plots for the deployed or the best tree model, KPIs, and the full CV / train / test table. |
-| **Explain** ("Why the model decides") | Permutation importance with error bars for the deployed model or XGBoost; **do the methods agree?** (ranks under permutation, mean \|SHAP\| and \|coefficient\|, Spearman ρ between them, and a sentence generated from the numbers); the **soil pH paradox** card (correlation ≈ 0 but a hump-shaped effect); in Technical mode, standardised coefficients with 95 % bootstrap intervals, partial dependence with 50 ICE lines, and method notes. |
-| **Data explorer** | The key EDA from notebook 01 as interactive charts: yield and input distributions, a Pearson / Spearman correlation heatmap, yield by crop, region and season, and yield by harvest month (needs the raw Kaggle CSV; a setup card explains how to get it). |
-| **India** | The real-world check. Simple: lessons, the selected model vs the look-up vs last year's yield, per-crop verdicts and a generated "how the model beats the look-up" card. Technical: CV and test KPIs, the verdict card, the feature-ablation chart with the look-up as a reference line, the 10 worst crops vs the look-up, the leaderboard (ranked by CV, test as a separate column), permutation importance and mean \|SHAP\| for the selected model, and every India table. |
+| **Home** | Simple: one sentence on what the app does, three plain result cards (typical error, how much it explains, how often the 90 % range is right), a **Try a prediction →** button and the data sources. Show details: the question, the headline numbers read from the results tables (best CV RMSE, test RMSE, test R², the 90 % range), a "how it works" pipeline strip (data → preprocess → 8 models → cross-validate → test once → explain) and a glossary. |
+| **Predict** | Simple: the 4 inputs that matter most (fertilizer, pesticide, rainfall, crop) with the scenario presets, the other 10 in a closed **More field conditions** expander (values kept), the result in one sentence ("This field should produce about 6.5 tonnes per hectare (usually between 5.5 and 7.6)"), the gauge and "Why this prediction". Show details: every input grouped and colour-coded (soil · weather · farming · context), the prediction with its **90 % range**, an interactive **SHAP waterfall** and the range's coverage per crop and region. Both: **Download CSV / PDF** report buttons. |
+| **What-if** | Simple: the prediction for the current field as one factor sweeps its range (90 % band shaded) and **Scenario A vs B** with both predictions and 90 % ranges, the gap in t/ha and %, a chart of which inputs explain the gap, Swap / Reset buttons and a CSV export. Show details adds a **two-factor heatmap** (25 × 25 grid over any two inputs, current scenario and best cell marked, never beyond the observed data range) and what drives yield overall (factor-group donut and bars, response curves, feature ranking, SHAP beeswarm). |
+| **Model comparison** (Show details) | Models ranked by CV RMSE with ± 1 sd error bars, predicted-vs-real and residual plots for the deployed or the best tree model, KPIs, and the full CV / train / test table. |
+| **What matters** (`/explain`) | Simple: what the model relies on (permutation importance, in plain words) and **the soil pH surprise** (the model's hump-shaped response). Show details adds error bars, **do the methods agree?** (ranks under permutation, mean \|SHAP\| and \|coefficient\|, Spearman ρ between them), the pH scatter with Pearson and Spearman correlations, standardised coefficients with 95 % bootstrap intervals, partial dependence with 50 ICE lines, and method notes. |
+| **Data explorer** (Show details) | The key EDA from notebook 01 as interactive charts: yield and input distributions, a Pearson / Spearman correlation heatmap, yield by crop, region and season, and yield by harvest month (needs the raw Kaggle CSV; a setup card explains how to get it). |
+| **Real-world check** (`/india`) | Simple: three lessons, the selected model vs the look-up vs last year's yield, per-crop verdicts and a generated "how the model beats the look-up" card. Show details: CV and test KPIs, the verdict card, the feature-ablation chart with the look-up as a reference line, the 10 worst crops vs the look-up, the leaderboard (ranked by CV, test as a separate column), permutation importance and mean \|SHAP\| for the selected model, and every India table. |
 
-![Predict page, Simple mode, light](docs/screenshots/p2_simple_light_predict_1440.png)
+![Home page, Simple mode, light](docs/screenshots/p9_simple_light_home_1366.png)
+
+![Predict page, Simple mode, light: 4 inputs, More field conditions, the result in one sentence](docs/screenshots/p9_simple_light_predict_1366.png)
+
+![What-if page, Simple mode, light: one factor and Scenario A vs B](docs/screenshots/p9_simple_light_whatif_1366.png)
+
+![What matters page, Simple mode, light](docs/screenshots/p9_simple_light_what_matters_1366.png)
+
+The captures below are from before Phase 9 ("Technical" mode, now **Show details**; the pages were called Overview, Explain and India):
 
 ![Predict page, Technical mode, dark](docs/screenshots/p2_technical_dark_predict_1440.png)
 
@@ -359,14 +367,14 @@ Every prediction is shown with a range such as **6.52 t/ha (90 % range 5.48–7.
 
 **Things to try:**
 - Click the **scenario presets**: Ideal field predicts 9.15 t/ha, Drought year 5.99, Low-input farm 5.51, and Typical field returns to 6.52.
-- Move **fertilizer** from minimum to maximum. The prediction swings from about 4.70 to 7.76 t/ha.
+- Move **fertilizer** from minimum to maximum (one of the 4 inputs in view in Simple mode). The prediction swings from about 4.70 to 7.76 t/ha.
 - Open **"What if I change…"** and choose Soil pH. The curve peaks around pH 6.6.
-- Move **irrigation frequency** across its whole range. The prediction barely changes (6.54–6.58 t/ha).
-- In **Technical** mode, set **soil pH** to 4.5, then 6.7, then 8.5. Its SHAP bar goes from −0.19 to +0.08 and back to −0.16.
-- On **What-if** (Simple mode), choose Rainfall under "How yield responds". The model's predicted yield rises, then levels off above about 805 mm.
+- Open **More field conditions** and move **irrigation frequency** across its whole range. The prediction barely changes (6.54–6.58 t/ha).
+- With **Show details**, set **soil pH** to 4.5, then 6.7, then 8.5. Its SHAP bar goes from −0.19 to +0.08 and back to −0.16.
+- On **What-if** with **Show details**, choose Rainfall under "How yield responds". The model's predicted yield rises, then levels off above about 805 mm.
 - Press **Reset to defaults** to return to 6.52 t/ha.
 
-The app loads saved models and never retrains. Measured in Phase 2 (headless Chrome at 1366×768, cold server): the first page (Overview) appears in about 9 s, the first Predict page in about 9.5 s (SHAP set-up), later page loads take 0.6 s (Overview) to 1.7 s (Predict), and a scenario preset updates the prediction in about 0.4–0.5 s (fully settled in about 1 s). The Phase 1 app, measured the same way on the same day, took 20.2 s, 1.8–2.8 s and 1.7–1.9 s. It uses Kernel SHAP instead of the permutation explainer, which avoids a roughly 20-second compile delay on first use. The design and verification records are in [`UI_REDESIGN_REPORT.md`](UI_REDESIGN_REPORT.md) (first redesign) and [`UI_V2_REPORT.md`](UI_V2_REPORT.md) (Simple / Technical modes).
+The app loads saved models and never retrains. Measured in Phase 2 (headless Chrome at 1366×768, cold server): the first page (Overview) appears in about 9 s, the first Predict page in about 9.5 s (SHAP set-up), later page loads take 0.6 s (Overview) to 1.7 s (Predict), and a scenario preset updates the prediction in about 0.4–0.5 s (fully settled in about 1 s). The Phase 1 app, measured the same way on the same day, took 20.2 s, 1.8–2.8 s and 1.7–1.9 s. It uses Kernel SHAP instead of the permutation explainer, which avoids a roughly 20-second compile delay on first use. The design and verification records are in [`UI_REDESIGN_REPORT.md`](UI_REDESIGN_REPORT.md) (first redesign) and [`UI_V2_REPORT.md`](UI_V2_REPORT.md) (Simple / Technical modes, renamed Simple / Show details in Phase 9; see `PROGRESS.md`).
 
 ---
 
@@ -436,7 +444,7 @@ CropYieldPrediction/
 ├── PROGRESS.md                # Audit, roadmap and per-phase measured results
 ├── CROP_YIELD_BUILD_REPORT.md # Full technical report with verification evidence
 ├── UI_REDESIGN_REPORT.md      # Dashboard redesign: before/after screenshots, scroll measurements, checks
-├── UI_V2_REPORT.md            # Simple/Technical modes: sentence-to-number checks, fit measurements
+├── UI_V2_REPORT.md            # Simple/Technical modes (now Simple/Show details): sentence-to-number checks
 └── CODE_REVIEW.md             # Self-review findings and viva Q&A
 ```
 
@@ -606,7 +614,7 @@ The same checks run on GitHub Actions (`.github/workflows/ci.yml`, Ubuntu, Pytho
 ## 10. Verification and reproducibility
 
 - **Deterministic:** every random process uses `RANDOM_STATE = 42`. Two independent full pipeline runs produced **byte-identical** `test_results.csv`, `best_params.json` and `submission.csv` (verified by file hash).
-- **179 automated tests** (none of which write to tracked files) cover split integrity, the preprocessor being fitted only on training data, `Production` never reaching an India model, the test years staying strictly after the training years, per-hectare conversions, SHAP additivity, the ablation logic, unseen categories, the leaderboard's CV ordering, the notebooks' setup cell (from the repo root and from `notebooks/`), and the app's plain-language sentences (correct rounded numbers, curve shapes, no t/ha on India), the conformal interval, display names for every column, theme contrast and config sync, the narrow-screen navigation and the light default on every page, the report, and every app page in both modes (Streamlit AppTest). `tests/ui_check.py` adds a headless-browser check of a running app (layout, truncated text, theme, navigation) at any widths.
+- **194 automated tests** (none of which write to tracked files) cover split integrity, the preprocessor being fitted only on training data, `Production` never reaching an India model, the test years staying strictly after the training years, per-hectare conversions, SHAP additivity, the ablation logic, unseen categories, the leaderboard's CV ordering, the notebooks' setup cell (from the repo root and from `notebooks/`), and the app's plain-language sentences (correct rounded numbers, curve shapes, no t/ha on India), the conformal interval, display names for every column, theme contrast and config sync, the narrow-screen navigation and the light default on every page, the report, every app page in both modes (Streamlit AppTest), and the Simple-first layout (Simple on a first visit, 5 pages in the nav and 7 with details, no technical words and at most 2 charts on any Simple page, 4 inputs on Predict). `tests/ui_check.py` adds a headless-browser check of a running app (layout, truncated text, theme, navigation: 5 pages in Simple, 7 with details) at any widths.
 - **Leakage guard:** every result was checked against a red-flag threshold of R² > 0.98 in the verification checklist. The code has no automatic stop. The best observed R² was 0.77.
 - **Notebooks** execute top to bottom with zero errors, and every claim in their text was checked against the printed output.
 - **Self-review:** a line-by-line review of the whole codebase found 0 critical, 1 high, 4 medium and 12 low issues. All critical and high findings were resolved. See `CODE_REVIEW.md`.

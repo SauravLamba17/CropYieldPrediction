@@ -1,4 +1,4 @@
-# PROGRESS — Phase 0 audit and showcase plan, Phase 1–8 results
+# PROGRESS — Phase 0 audit and showcase plan, Phase 1–9 results
 
 CSL236 AIML course project, Team 2: crop yield prediction (t/ha).
 Audit date: 2026-11-14. Commit audited: `511cdfe`.
@@ -6,7 +6,33 @@ Audit date: 2026-11-14. Commit audited: `511cdfe`.
 Every number in this file was produced in this session by a fresh `git clone` of the repo, with a fresh virtual environment built from `requirements-lock.txt` (Python 3.14.4, Windows 11, 16 logical CPUs). Nothing was copied from the old outputs. The original working folder was only read: no code, notebook, data or result file in it was changed.
 
 
-> **Screenshots:** since Phase 3 the per-phase captures in `screenshots/` (Phase 0 audit, `phase1/`, `phase2/`, `phase3/`) are git-ignored and local only; they were also removed from the unpushed history (with approval). A curated set is committed in `docs/screenshots/` (`p2_*`, `p3_*`). Paths below that start with `screenshots/` refer to the local folder.
+> **Screenshots:** since Phase 3 the per-phase captures in `screenshots/` (Phase 0 audit, `phase1/`, `phase2/`, `phase3/`) are git-ignored and local only; they were also removed from the unpushed history (with approval). A curated set is committed in `docs/screenshots/` (`p2_*` to `p4_*`, and `p9_*` for the Simple-first layout). Paths below that start with `screenshots/` refer to the local folder.
+
+---
+
+## Phase 9 results (2026-11-17): simple by default
+
+**Goal:** a first-time visitor (a professor, classmates) should find the app simple and non-technical, while every feature stays reachable for examiners. UI wording, layout and navigation only: no model, feature, results table, metric or the 90 % range method changed, and no page, chart or feature was deleted.
+
+| # | Change | Where |
+|---|---|---|
+| 1 | **Simple is the default** on every page; the switch is now **Simple \| Show details** and the choice is kept across pages | `ui/data.py` (`TECHNICAL = "Show details"`), `app.py` |
+| 2 | **5 pages in Simple mode:** Home · Predict · What-if · What matters (`/explain`) · Real-world check (`/india`). Model comparison and Data explorer join the nav with Show details; they stay registered (`st.Page(visibility="hidden")`), so `/models` and `/explorer` still open by direct link | `app.py` |
+| 3 | **Plain-language pass:** Simple-mode ⓘ texts in everyday words (`plain.SIMPLE_TIPS`), Simple headlines and captions on What matters (no Spearman, Pearson or Lasso), no "R²" in the India lesson, no "SHAP of B minus SHAP of A" in the A vs B caption, the glossary only with details | `ui/plain.py`, `app_pages/*` |
+| 4 | **One message per chart:** every Simple chart has a one-line takeaway above it, generated from the numbers (`curve_headline`, `importance_headline`, `contribution_headline`, `gauge_headline`, `gap_headline`, `lowest_error_headline`, `crops_headline`). At most 2 charts per Simple page: What-if's heatmap, the method-agreement chart and the pH scatter moved to Show details; What-if's Simple-only donut and response curve now show with details | `ui/plain.py`, `ui/components.py` (`chart_headline`), `app_pages/whatif.py`, `app_pages/explain.py` |
+| 5 | **Simpler Predict:** 4 inputs in view (fertilizer, pesticide, rainfall, crop) plus the scenarios; the other 10 in a closed **More field conditions** expander, same session keys so their values are kept; the result in one sentence: "This field should produce about **6.5 tonnes per hectare** (usually between **5.5** and **7.6**)." | `app_pages/predict.py` |
+| 6 | **Simpler Home:** one sentence on what the app does, three plain cards (typical error **0.65 t/ha**, how much it explains **69 %**, how often the range is right **89 %**), a big **Try a prediction →** button; the 6-step strip and the glossary only with details | `app_pages/overview.py` |
+| 7 | **Docs:** demo flow Home → Predict → What-if → What matters → Real-world check, with one Show details stop for the examiners; README screenshots `docs/screenshots/p9_*`; DEPLOY checklist | `docs/DEMO_SCRIPT.md`, `README.md`, `docs/DEPLOY.md` |
+
+**Jargon test.** `tests/test_phase9.py` renders the 5 Simple pages with Streamlit AppTest and scans everything a visitor can read (page text, ⓘ tooltips, widget labels, help and options, expander labels, chart titles and the data labels each chart draws) for RMSE, MAE, R², CV, cross-validation, SHAP, permutation, conformal, p-value, lag, target encoding, polynomial, Ridge, ablation and baseline: **0 hits**. A control test confirms the same scan finds SHAP and permutation on What matters with details.
+
+**Verification (local app on port 8611):**
+- `python run.py check`: ruff clean, **194 passed** (179 before; 15 new: Simple on a first visit, the choice kept across pages, 5 / 7 pages in the nav, hidden pages open by URL, the jargon scan and at most 2 charts with a headline on each of the 5 Simple pages, the scan's control, 4 inputs on Predict with the rest in a closed expander, hidden inputs keep their values, Simple tooltips, the headline sentences, the result sentence).
+- `tests/ui_check.py` (now also expects 5 nav links in Simple and 7 with details, and waits until the page script has finished): 1366, 1024, 768 and 600 px × light/dark × 7 pages × Simple/Show details, plus `/whatif` and `/india` opened with empty storage on a dark-mode system: **114 of 114 pass**.
+- Built-in browser, fresh storage, 758 px: opens in Simple and light with 5 pages; Home, Predict, What-if, What matters and Real-world check reached by clicking the nav, each with **0 forbidden words** in the visible text, tooltips and chart labels, 0–2 charts each with its headline; Predict shows exactly Fertilizer, Pesticide use, Rainfall and Crop outside the closed expander. With Show details: 7 pages, and every chart is there (What-if 6, What matters 6, Model comparison 3, Data explorer 7, Real-world check 4, Predict 1).
+- Before/after screenshots at 1366 px, light: `screenshots/phase9/before_*` and `after_*` (Home, Predict, What matters; git-ignored).
+
+**Not changed:** models, features, results tables, metrics, the 90 % range, the pipeline code. The page files and URLs (`/explain`, `/india`) keep their names, so old links work.
 
 ---
 

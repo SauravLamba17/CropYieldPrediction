@@ -45,17 +45,17 @@ Installing `requirements.txt` into a fresh venv took **5 min 04 s** on the devel
 Open the URL in a private window (no cached theme) and check, in this order:
 
 - [ ] No "Health check" card under the header (it lists any results table that is missing).
-- [ ] **Overview** shows 0.63 t/ha (CV), 0.65 t/ha (test), 69 % and ± 1.04 t/ha.
-- [ ] **Predict**: the Typical field predicts **6.52 t/ha (90 % range 5.48–7.56)**; pick **Drought year** and the number drops; **Download PDF** works.
-- [ ] **What-if**: the heatmap draws; in Scenario A vs B, move a B slider and the gap changes.
-- [ ] **Model comparison**: Technical mode shows the tie-check card.
-- [ ] **Explain**: the method-agreement card (ρ 0.89 / 0.73 / 0.74) and the soil pH paradox card.
-- [ ] **Data explorer**: charts draw. The harvest-month card shows "This chart needs the raw Kaggle file" on Cloud, because the raw CSV is not in git; that is expected.
-- [ ] **India**: Simple shows 6.85 vs 7.81 and the "last year's yield 6.95" note; Technical shows the leaderboard, the ablation chart, the 10 worst crops and the tie-check card.
-- [ ] Switch **Simple ↔ Technical** on two pages, and **Light ↔ Dark** from the ⋮ menu (top right) → **Light** / **Dark**.
+- [ ] The app opens in **Simple** with 5 pages in the top navigation: Home · Predict · What-if · What matters · Real-world check.
+- [ ] **Home** shows 0.65 t/ha, 69 % and 89 %, and **Try a prediction →** opens Predict.
+- [ ] **Predict**: 4 inputs and a closed **More field conditions**; the Typical field reads "about **6.5 tonnes per hectare** (usually between **5.5** and **7.6**)" and the gauge **6.52 t/ha**; pick **Drought year** and the number drops; **Download PDF** works.
+- [ ] **What-if**: in Scenario A vs B, move a B slider and the gap changes.
+- [ ] **What matters**: "Fertilizer matters most, by far" and the soil pH surprise card.
+- [ ] **Real-world check**: Simple shows 6.85 vs 7.81 and the "last year's yield 6.95" note.
+- [ ] Switch to **Show details**: the navigation lists 7 pages. **Home** shows 0.635 t/ha (CV), 0.646 t/ha (test), R² 0.690 and ± 1.04 t/ha (held 88.5 %); **What-if** draws the heatmap; **Model comparison** shows the tie-check card; **What matters** shows the method-agreement card (ρ 0.89 / 0.73 / 0.74); **Data explorer** charts draw (the harvest-month card shows "This chart needs the raw Kaggle file" on Cloud, because the raw CSV is not in git; that is expected); **Real-world check** shows the leaderboard, the feature-group chart, the 10 worst crops and the tie-check card.
+- [ ] Switch back to **Simple** on another page (the choice is kept across pages), and **Light ↔ Dark** from the ⋮ menu (top right) → **Light** / **Dark**.
 - [ ] Narrow the browser window below 768 px: nothing overlaps, and the **»** button (top left) opens the page navigation.
 
-Measured locally with only `requirements.txt` installed (the same set Cloud installs): the server answered its health check **2.2 s** after launch and the first page was fully drawn after **14.6 s** (cold start, measured with a headless browser that was itself starting); peak memory was **468 MB** (resident set of the server process; Windows peak working set 498 MB) after visiting all 7 pages in both modes and both themes, with 0 requests to any outside host. The docs give Community Cloud apps between 690 MB and 2.7 GB of memory, so the app fits, but avoid opening it in many tabs at once on the free tier.
+Measured locally with only `requirements.txt` installed (the same set Cloud installs): the server answered its health check **2.2 s** after launch and the first page was fully drawn after **14.6 s** (cold start, measured with a headless browser that was itself starting); peak memory was **468 MB** (resident set of the server process; Windows peak working set 498 MB) after visiting all 7 pages in both modes and both themes (measured before Phase 9), with 0 requests to any outside host. The docs give Community Cloud apps between 690 MB and 2.7 GB of memory, so the app fits, but avoid opening it in many tabs at once on the free tier.
 
 ## Reboot, clear the cache, read the logs
 

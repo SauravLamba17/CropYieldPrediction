@@ -123,3 +123,13 @@ See `PROGRESS.md` (Phase 7–8 section) for the measured results.
 - **"0.00", not "−0.00",** for factors that do not change in the A vs B bars (and anywhere `plain.signed` is used).
 - **`tests/ui_check.py`:** a headless-browser page check, now including ellipsis-truncated text in wrapper DIVs; 142 of 142 checks pass.
 - **Docs:** usage statistics: "Locally the app makes no outside requests. On Streamlit Community Cloud, the platform still sends Streamlit's own usage statistics, which the repo can't switch off." Theme switch: "⋮ → Light / Dark" (there is no Settings step).
+
+## Phase 9 — simple by default
+
+- **Simple first:** a first visit opens in Simple mode; the switch reads **Simple | Show details** and is kept across pages.
+- **5 pages in Simple mode:** Home (was Overview), Predict, What-if, What matters (was Explain, still `/explain`) and Real-world check (was India, still `/india`). Model comparison and Data explorer appear with Show details and still open from a direct link.
+- **Plain words only in Simple mode:** everyday ⓘ texts, captions and headlines; `tests/test_phase9.py` scans every Simple page for 15 technical terms.
+- **One message per chart:** a one-line takeaway above every Simple chart, generated from the numbers; at most 2 charts per Simple page, the rest with Show details (nothing removed).
+- **Simpler Predict:** 4 inputs plus the scenarios, the other 10 in a closed "More field conditions" expander, and the result in one sentence.
+- **Simpler Home:** one sentence, three plain result cards and a **Try a prediction →** button; the "How it works" strip and the glossary with Show details.
+- **Checks:** 194 tests pass; `tests/ui_check.py` expects 5 / 7 nav links and waits for the page script to finish: 114 of 114 pass at 1366, 1024, 768 and 600 px in both modes and themes.
