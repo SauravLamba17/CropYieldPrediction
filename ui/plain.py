@@ -151,6 +151,36 @@ TIPS = {  # one-line explanations behind every ⓘ (both modes)
         "prediction; its colour shows whether the factor's value was high or low."
     ),
 }
+SIMPLE_TIPS = {  # Simple mode: the same ⓘ in everyday words, no technical terms
+    "rmse": (
+        "Typical error: how far a prediction usually lands from the real yield, in t/ha. "
+        "Big misses count extra. Lower is better."
+    ),
+    "r2": (
+        "How much of the difference between fields the model explains: 100% = all of it, "
+        "0% = no better than guessing the average every time."
+    ),
+    "contributions": (
+        "How much each factor pushed this prediction above (+) or below (−) the average "
+        "prediction, in t/ha."
+    ),
+    "abtest": (
+        "Each bar is how much one factor's push changes between the two scenarios. The bars "
+        "add up to the difference between the two predictions."
+    ),
+    "permutation": (
+        "Scramble one factor across fields the model never saw and see how much the typical "
+        "error grows. Bigger growth = the model relies on it more."
+    ),
+    "shap": (
+        "Each prediction is split into how much each factor pushed it. The average size of "
+        "those pushes ranks how much the model relies on each factor."
+    ),
+    "cv": (
+        "A fair test: the model is scored on fields it did not learn from, several times over, "
+        "so a good score is not down to luck."
+    ),
+}
 INPUT_TIPS = {  # slider help (both modes)
     "soil_ph": "How acidic (below 7) or alkaline (above 7) the soil is.",
     "soil_moisture": "How much water the soil holds, in %.",
@@ -184,6 +214,13 @@ GLOSSARY = {  # "How it works" tab
 
 FLAT_RANGE = 0.1  # t/ha: a sweep that moves the prediction less than this "barely changes" it
 WORKS_WELL = 0.5  # per-crop typical error under 50% of the crop's average yield = "works well"
+BY_FAR = 2.0  # the top factor "matters most, by far" when it is at least twice the second
+CLOSE_BEHIND = 1.05  # a runner-up within 5% of the best is "close behind"
+
+
+def tip_text(key: str, simple: bool) -> str:
+    """The ⓘ text for `key`: the everyday version in Simple mode when there is one."""
+    return SIMPLE_TIPS.get(key, TIPS[key]) if simple else TIPS[key]
 
 
 # --- numbers --------------------------------------------------------------------------
@@ -275,6 +312,108 @@ def curve_caption(name: str, unit: str, grid, values) -> str:
         "falls then levels off": f"predicted yield falls, then levels off above about <b>{where}</b>",
     }[shape]
     return f"{name}: {text}."
+
+
+# --- chart headlines (Simple mode: one line above each chart, from the real numbers) ----
+
+
+def curve_headline(name: str, unit: str, grid, values) -> str:
+    """'Fertilizer: more of it, higher predicted yield' style takeaway for a prediction curve."""
+    shape, at = curve_shape(grid, values)
+    where = value_text(at, unit, decimals_for_span(float(np.ptp(np.asarray(grid, dtype=float))))) if at else ""
+    lower = labels.lower(name)
+    return {
+        "barely changes": f"{name} barely changes the prediction",
+        "peaks": f"{name} works best around {where}",
+        "dips": f"{name} is least helpful around {where}",
+        "rises": f"More {lower}, higher predicted yield",
+        "falls": f"More {lower}, lower predicted yield",
+        "rises then levels off": f"{name} helps up to about {where}, then levels off",
+        "falls then levels off": f"{name} lowers the prediction up to about {where}, then levels off",
+    }[shape]
+
+
+def importance_headline(ranked: list[tuple[str, float]]) -> str:
+    """ranked: (friendly name, importance), largest first -> 'Fertilizer matters most, by far'."""
+    (first, a), (second, b) = ranked[0], ranked[1]
+    if b <= 0 or a >= BY_FAR * b:
+        return f"{first} matters most, by far"
+    return f"{first} matters most, then {labels.lower(second)}"
+
+
+def contribution_headline(contributions: dict[str, float]) -> str:
+    """The factor with the biggest push on this prediction, up or down."""
+    top = max(contributions, key=lambda k: abs(contributions[k]))
+    value = contributions[top]
+    if abs(value) < 0.005:
+        return "No factor moves this prediction much"
+    verb = "helps this field most" if value > 0 else "holds this field back most"
+    return f"{top} {verb} ({signed(value)} t/ha)"
+
+
+def gauge_headline(rating_word: str, share_below: float) -> str:
+    word = rating_word.lower()
+    return (
+        f"{_article(word).capitalize()} {word} yield: higher than {int(share_below * 100)}% "
+        "of the fields the model learned from"
+    )
+
+
+def gap_headline(diff: float) -> str:
+    """A vs B: which scenario the model expects to yield more."""
+    if abs(diff) < 0.005:
+        return "B and A should yield about the same"
+    return f"B should yield {abs(diff):.2f} t/ha {'more' if diff > 0 else 'less'} than A"
+
+
+def lowest_error_headline(errors: dict[str, float]) -> str:
+    """errors: plain predictor phrase -> typical error. Names the smallest and a close runner-up."""
+    ranked = sorted(errors.items(), key=lambda kv: kv[1])
+    (best, low), (second, next_low) = ranked[0], ranked[1]
+    text = f"{best[:1].upper()}{best[1:]} makes the smallest errors"
+    if next_low <= CLOSE_BEHIND * low:
+        text += f", with {second} close behind"
+    return text
+
+
+def crops_headline(n_well: int, n_crops: int) -> str:
+    return f"The model works well for {n_well} of the {n_crops} most common crops"
+
+
+def result_sentence(prediction: float, lo: float | None, hi: float | None) -> str:
+    """Predict, Simple mode: the whole result in one sentence."""
+    text = f"This field should produce about <b>{prediction:.1f} tonnes per hectare</b>"
+    if lo is not None and hi is not None:
+        text += f" (usually between <b>{lo:.1f}</b> and <b>{hi:.1f}</b>)"
+    return text + "."
+
+
+def ph_sentence_simple(r: float, optimum: dict) -> str:
+    """The soil pH surprise without statistics words."""
+    link = (
+        f"A straight-line check finds almost no link between soil pH and yield (<b>{r:+.2f}</b> on a "
+        "scale from −1 to 1)."
+    )
+    if not optimum["interior"]:
+        return link + (
+            " And the model's prediction is highest at the edge of the range "
+            f"(pH {optimum['peak_x']:.1f}), so this data shows no hidden curve."
+        )
+    return link + (
+        f" Yet the model's prediction rises and then falls, best around pH <b>{optimum['low']:.1f}"
+        f"–{optimum['high']:.1f}</b>: a hump has no straight-line trend, so that check misses it."
+    )
+
+
+def methods_headline_simple(top: str | None, mean_rho: float, model_name: str) -> str:
+    """What matters, Simple mode: the top factor and whether three ways of measuring agree."""
+    order = ("nearly the same order" if mean_rho >= 0.8 else "a similar order" if mean_rho >= 0.5
+             else "quite different orders")
+    if top:
+        return (f"<b>{top}</b> matters most to the {model_name} model: three different ways of "
+                f"measuring all put it first, and they rank the other factors in {order}.")
+    return (f"Three different ways of measuring disagree on the top factor for the {model_name} model, "
+            f"and rank the factors in {order}.")
 
 
 # --- headline sentences ---------------------------------------------------------------
@@ -383,7 +522,7 @@ def lesson_seasons(n_negative: int, n_crops: int) -> tuple[str, str]:
             if 2 * n_negative > n_crops else "Good vs bad seasons for the same crop are the hardest part")
     return f"{n_negative} of {n_crops}", (
         f"{lead}: for <b>{n_negative} of the {n_crops}</b> most common crops, they predict that "
-        "crop's yield no better than simply guessing its average every time (R² below zero)."
+        "crop's yield no better than simply guessing its average every time."
     )
 
 

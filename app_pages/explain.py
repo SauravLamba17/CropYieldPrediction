@@ -1,18 +1,34 @@
-"""Why the model decides: global importance, do the methods agree, coefficients, PDP/ICE, soil pH."""
+"""What matters: global importance, do the methods agree, coefficients, PDP/ICE, soil pH.
+
+Simple mode: what the model relies on and the soil pH surprise, each chart with a one-line
+takeaway. Show details adds the method comparison, the pH scatter, coefficients and PDP/ICE.
+"""
 
 import streamlit as st
 
 from src import config
 from ui import analysis, charts, data, labels, plain
-from ui.components import Kpi, caption, card_title, headline_card, kpi_row, page_title, setup_card
+from ui.components import (
+    Kpi,
+    caption,
+    card_title,
+    chart_headline,
+    headline_card,
+    kpi_row,
+    page_title,
+    setup_card,
+)
 from ui.plain import TIPS
 
 METHODS = {"permutation": "Permutation", "shap": "Mean |SHAP|", "coefficient": "|Coefficient|"}
-page_title(
-    "Why the model decides",
-    "Global importance, whether the methods agree, and how each input moves the prediction",
-)
 simple = data.is_simple()
+if simple:
+    page_title("What matters", "Which factors the model leans on most, and one surprise")
+else:
+    page_title(
+        "Why the model decides",
+        "Global importance, whether the methods agree, and how each input moves the prediction",
+    )
 names = data.model_names()
 perm, shap_table = data.load_table("explain_permutation"), data.load_table("explain_shap")
 coefs, signal = data.load_table("explain_coefficients"), data.load_table("feature_signal")
@@ -36,52 +52,71 @@ first = [f for f in config.FEATURES if (ranks.loc[f] == 1).all()]
 spread = (ranks.max(axis=1) - ranks.min(axis=1)).sort_values(ascending=False)
 mean_rho = agree["rho"].mean()
 top_perm = scores["permutation"].idxmax()
-if first:
+if simple:
+    top_name = labels.name(first[0], True) if first else None
+    summary = plain.methods_headline_simple(top_name, mean_rho, labels.model(model, True))
+elif first:
     summary = (f"All three methods rank <b>{labels.lower(labels.name(first[0], simple))}</b> first for the "
                f"{labels.model(model, simple)} model")
 else:
     summary = (f"The methods disagree on the top factor: permutation ranks "
                f"<b>{labels.lower(labels.name(top_perm, simple))}</b> first")
-summary += (f", and their rankings agree with an average Spearman ρ of <b>{mean_rho:.2f}</b> "
-            f"(1 = identical order). They disagree most on <b>{labels.lower(labels.name(spread.index[0], simple))}</b> "
-            f"(ranks {ranks.loc[spread.index[0]].min()}–{ranks.loc[spread.index[0]].max()}).")
+if not simple:
+    summary += (f", and their rankings agree with an average Spearman ρ of <b>{mean_rho:.2f}</b> "
+                f"(1 = identical order). They disagree most on <b>{labels.lower(labels.name(spread.index[0], simple))}</b> "
+                f"(ranks {ranks.loc[spread.index[0]].min()}–{ranks.loc[spread.index[0]].max()}).")
 headline_card(summary)
 
 with st.container(key="card-importance"):
     card_title("What the model relies on",
-               "Increase in test error when one input is shuffled (30 repeats, ± 1 sd)",
-               help_text=TIPS["permutation"])
+               "How much the typical error grows when one factor is scrambled" if simple
+               else "Increase in test error when one input is shuffled (30 repeats, ± 1 sd)",
+               help_text=plain.tip_text("permutation", simple))
     st.segmented_control("Model", list(options), format_func=options.get, required=True,
                          key="explain_model", label_visibility="collapsed")
     table = perm.query("model == @model").assign(label=lambda d: d["feature"].map(lambda f: labels.name(f, simple)))
+    if simple:
+        chart_headline(plain.importance_headline(list(zip(table["label"], table["importance_mean"]))))
     st.altair_chart(charts.ranked_bar_chart(
-        table, "label", "importance_mean", "Increase in test RMSE (t/ha)", ".3f", height=380,
+        table, "label", "importance_mean",
+        "How much the typical error grows (t/ha)" if simple else "Increase in test RMSE (t/ha)", ".3f", height=380,
         highlight={table["label"].iloc[0]}, error="importance_std"))
 
-with st.container(key="card-agreement"):
-    card_title("Do the methods agree?",
-               "Rank of every input under three methods (1 = most important); a straight column = agreement",
-               help_text=TIPS["agreement"])
-    long = ranks.reset_index(names="feature").melt(id_vars="feature", var_name="method", value_name="rank")
-    long = long.assign(feature=long["feature"].map(lambda f: labels.name(f, simple)),
-                       method=long["method"].map(METHODS))
-    order = [labels.name(f, simple) for f in scores["permutation"].sort_values(ascending=False).index]
-    st.altair_chart(charts.rank_dot_chart(long, order, list(METHODS.values()), height=400))
-    kpi_row([Kpi(f"{METHODS[r.a]} vs {METHODS[r.b]}", f"{r.rho:.2f}", "ρ",
-                 "Spearman rank correlation", help_text=TIPS["spearman"]) for r in agree.itertuples()])
-    caption(f"Permutation and mean |SHAP| are for the {labels.model(model, simple)} model; |coefficient| is the "
-            "largest standardised coefficient of each input in the multiple linear model (a category's strongest level).")
+if not simple:
+    with st.container(key="card-agreement"):
+        card_title("Do the methods agree?",
+                   "Rank of every input under three methods (1 = most important); a straight column = agreement",
+                   help_text=TIPS["agreement"])
+        long = ranks.reset_index(names="feature").melt(id_vars="feature", var_name="method", value_name="rank")
+        long = long.assign(feature=long["feature"].map(lambda f: labels.name(f, simple)),
+                           method=long["method"].map(METHODS))
+        order = [labels.name(f, simple) for f in scores["permutation"].sort_values(ascending=False).index]
+        st.altair_chart(charts.rank_dot_chart(long, order, list(METHODS.values()), height=400))
+        kpi_row([Kpi(f"{METHODS[r.a]} vs {METHODS[r.b]}", f"{r.rho:.2f}", "ρ",
+                     "Spearman rank correlation", help_text=TIPS["spearman"]) for r in agree.itertuples()])
+        caption(f"Permutation and mean |SHAP| are for the {labels.model(model, simple)} model; |coefficient| is the "
+                "largest standardised coefficient of each input in the multiple linear model (a category's strongest level).")
 
 st.html('<a id="soil-ph-paradox"></a>')
 with st.container(key="card-ph"):
-    card_title("The soil pH paradox: why correlation misses it",
-               "Correlation looks for straight lines; the model can follow a curve", help_text=TIPS["ph"])
+    if simple:
+        card_title("The soil pH surprise", "A straight-line check misses it; the model can follow a curve",
+                   help_text=TIPS["ph"])
+    else:
+        card_title("The soil pH paradox: why correlation misses it",
+                   "Correlation looks for straight lines; the model can follow a curve", help_text=TIPS["ph"])
     train = data.split()[0]
     r, rho = analysis.correlations(train["soil_ph"], train[config.TARGET])
     curve = data.response_curve("soil_ph")
     opt = analysis.optimum_region(curve)
     lasso_ph = coefs.query("model == 'lasso' and feature == 'soil_ph'")["coef"]
     kept = (not lasso_ph.empty) and abs(float(lasso_ph.iloc[0])) > 0
+    if simple:  # the model's curve only; the scatter and the statistics are with the details
+        chart_headline(plain.curve_headline("Soil pH", "pH", curve["x"], curve["y"]))
+        st.altair_chart(charts.curve_chart(curve, None, labels.label("soil_ph"), 260,
+                                           region=(opt["low"], opt["high"])))
+        st.html(f'<p class="plain-text">{plain.ph_sentence_simple(r, opt)}</p>')
+        st.stop()
     left, right = st.columns(2, gap="medium")
     with left:
         st.altair_chart(charts.scatter_xy(train, "soil_ph", config.TARGET, labels.label("soil_ph"),

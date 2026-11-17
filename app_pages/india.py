@@ -1,4 +1,8 @@
-"""India: every model re-checked on real Indian state crop records (1997–2020)."""
+"""Real-world check (India): every model re-checked on real Indian state crop records (1997–2020).
+
+Simple mode: three lessons and two charts, each with a one-line takeaway. Show details: the
+exact scores, the feature-group comparison, the leaderboard, the tie check and every table.
+"""
 
 import json
 
@@ -13,6 +17,7 @@ from ui.components import (
     Kpi,
     caption,
     card_title,
+    chart_headline,
     headline_card,
     kpi_row,
     setup_card,
@@ -164,7 +169,8 @@ if simple:
     compare_side, crop_side = st.columns(2, gap="medium")
     with compare_side, st.container(key="card-india-compare", height="stretch"):
         card_title("Typical error on the 2016–2020 test years",
-                   f"{plain.INDIA_UNIT} (varies by crop){unit_tip} · lower is better", help_text=TIPS["rmse"])
+                   f"{plain.INDIA_UNIT} (varies by crop){unit_tip} · lower is better",
+                   help_text=plain.tip_text("rmse", True))
         guess = india_test.set_index("model").loc["dummy_mean", "rmse"]
         best_label = "Chosen model"  # short: the long model names were cut off at every width
         rows = {"Look-up: crop's usual yield in the state": lookup["rmse"], best_label: best_rmse,
@@ -172,6 +178,10 @@ if simple:
         if extended:
             rows["Repeat last year's yield"] = board.loc[PERSISTENCE, "test_rmse"]
         compare = pd.DataFrame({"label": list(rows), "rmse": list(rows.values())}).sort_values("rmse")
+        phrases = {"Look-up: crop's usual yield in the state": "the look-up of each crop's usual yield",
+                   best_label: "the chosen model", "Guessing the average": "guessing the average",
+                   "Repeat last year's yield": "repeating last year's yield"}
+        chart_headline(plain.lowest_error_headline({phrases[k]: v for k, v in rows.items()}))
         st.altair_chart(charts.ranked_bar_chart(
             compare, "label", "rmse", f"Typical error ({plain.INDIA_UNIT})", ".2f", height=240,
             highlight={compare["label"].iloc[0]}, muted={"Guessing the average"}))
@@ -184,6 +194,7 @@ if simple:
             "relative": crops["relative_rmse"],
             "verdict": np.where(crops["relative_rmse"] < plain.WORKS_WELL, "works well", "struggles"),
         })
+        chart_headline(plain.crops_headline(int((verdicts["verdict"] == "works well").sum()), len(verdicts)))
         st.altair_chart(charts.verdict_bar_chart(verdicts, height=260))
     if extended:
         with st.container(key="card-india-verdict"):

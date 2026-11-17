@@ -236,6 +236,13 @@ footer, [data-testid="stDecoration"] {{ display: none !important; }}
 .headline .h-text {{ font-size: 16px; color: var(--cy-text); margin: 0; line-height: 1.5; }}
 .headline b, .plain-text b, .lesson b {{ color: var(--cy-green); font-weight: 700; }}
 .plain-text {{ font-size: 15px; color: var(--cy-text); margin: 0; line-height: 1.5; }}
+/* Simple mode: the one-line takeaway above a chart */
+.chart-headline {{ font-family: var(--font-head); font-size: 17px; font-weight: 700; color: var(--cy-text);
+    margin: 0; line-height: 1.35; }}
+.st-key-hero-gauge .chart-headline {{ color: {ON_HERO}; font-size: 16px; }}
+/* Home, Simple mode: the big call to action */
+.st-key-try_predict button {{ min-height: 56px; padding: 0 var(--sp-6); font-size: 18px; }}
+.st-key-try_predict button p {{ font-size: 18px; font-weight: 700; }}
 .setup {{ border-left: 6px solid var(--cy-gold); }}
 .setup .s-title {{ font-family: var(--font-head); font-size: 17px; font-weight: 700;
     color: var(--cy-text); margin: 0 0 var(--sp-1) 0; }}

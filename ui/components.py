@@ -71,6 +71,11 @@ def card_title(
     )
 
 
+def chart_headline(text: str) -> None:
+    """Simple mode: the one-line takeaway right above a chart (text from ui.plain)."""
+    st.html(f'<p class="chart-headline">{text}</p>')
+
+
 def caption(text: str) -> None:
     st.html(f'<p class="card-caption">{text}</p>')
 
