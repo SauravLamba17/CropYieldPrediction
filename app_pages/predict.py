@@ -1,4 +1,8 @@
-"""Predict: set a field's conditions, get the predicted yield, its 90% range and why."""
+"""Predict: set a field's conditions, get the predicted yield, its 90% range and why.
+
+Simple mode shows the 4 inputs that matter most plus the scenarios; the other 10 sit in a closed
+"More field conditions" expander with their values kept. Show details keeps every input in view.
+"""
 
 import numpy as np
 import pandas as pd
@@ -6,12 +10,13 @@ import streamlit as st
 
 from src import config
 from ui import charts, data, labels, plain
-from ui.components import caption, card_title, headline_card, show_table
+from ui.components import caption, card_title, chart_headline, headline_card, show_table
 from ui.plain import TIPS
 from ui.report import report_csv, report_frame, report_pdf
 from ui.theme import GROUP_SERIES, tip
 
 TOP_CONTRIBUTIONS = 8  # the explanation shows the 8 largest; the rest are summed
+MAIN_INPUTS = ["fertilizer_amount", "pesticide_usage", "total_rainfall", "crop_type"]  # Simple mode
 WHY, WHAT_IF = "Why this prediction", "What if I change…"
 EYEBROW = {"soil": "soil", "sky": "sky", "green": "green", "gold_chart": "gold"}
 
@@ -27,10 +32,10 @@ q25, q50, q75 = summary["quartiles"]
 rating = plain.rating(predicted, q25, q50, q75)
 share_below = np.searchsorted(summary["sorted_yields"], predicted) / summary["n_train"]
 
-text = plain.predict_headline(predicted, rating, share_below, summary["n_train"])
-if band and simple:
-    text += " " + plain.interval_sentence(lo, hi, band["test_coverage"], band["n_test"])
-headline_card(text)
+if simple:
+    headline_card(plain.result_sentence(predicted, lo, hi))
+else:
+    headline_card(plain.predict_headline(predicted, rating, share_below, summary["n_train"]))
 
 
 def input_widget(col: str) -> None:
@@ -56,20 +61,31 @@ with st.container(key="card-inputs"):
     with button:
         st.button("Reset to defaults", type="primary", icon=":material/restart_alt:",
                   on_click=data.reset_inputs, key="reset", width="stretch")
-    # Soil (5 inputs) spans two sub-columns (3 + 2), so every group is at most 3 rows tall.
-    columns = st.columns([2, 1, 1.15, 0.85], gap="large")
-    for column, (group, features) in zip(columns, config.FEATURE_GROUPS.items()):
-        with column:
-            css = EYEBROW[GROUP_SERIES[group]]
-            st.html(f'<p class="eyebrow {css}"><span class="dot"></span>{labels.group(group, simple)}</p>')
-            if len(features) > 3:
-                for sub, part in zip(st.columns(2, gap="large"), (features[:3], features[3:])):
-                    with sub:
-                        for feature in part:
-                            input_widget(feature)
-            else:
-                for feature in features:
+    if simple:  # the 4 that matter most in view; the rest closed, values kept
+        for column, feature in zip(st.columns(4, gap="large"), MAIN_INPUTS):
+            with column:
+                input_widget(feature)
+        with st.expander("More field conditions", icon=":material/tune:", expanded=False):
+            others = [f for f in config.FEATURES if f not in MAIN_INPUTS]
+            columns = st.columns(4, gap="large")
+            for i, feature in enumerate(others):
+                with columns[i % 4]:
                     input_widget(feature)
+    else:
+        # Soil (5 inputs) spans two sub-columns (3 + 2), so every group is at most 3 rows tall.
+        columns = st.columns([2, 1, 1.15, 0.85], gap="large")
+        for column, (group, features) in zip(columns, config.FEATURE_GROUPS.items()):
+            with column:
+                css = EYEBROW[GROUP_SERIES[group]]
+                st.html(f'<p class="eyebrow {css}"><span class="dot"></span>{labels.group(group, simple)}</p>')
+                if len(features) > 3:
+                    for sub, part in zip(st.columns(2, gap="large"), (features[:3], features[3:])):
+                        with sub:
+                            for feature in part:
+                                input_widget(feature)
+                else:
+                    for feature in features:
+                        input_widget(feature)
 
 with st.spinner("Explaining this prediction (the first time takes a few seconds)…", show_time=True):
     base_value, contributions = data.explanation(inputs)
@@ -86,6 +102,7 @@ hero_col, chart_col = st.columns([35, 65], gap="medium")
 if simple:
     with hero_col, st.container(key="hero-gauge", height="stretch"):
         st.html(f'<p class="gauge-top">Predicted yield{tip(TIPS["gauge"])}</p>')
+        chart_headline(plain.gauge_headline(rating, share_below))
         bands = [("Low", summary["min"], q25), ("Typical", q25, q50), ("Good", q50, q75),
                  ("Excellent", q75, summary["max"])]
         st.altair_chart(charts.gauge_chart(predicted, summary["min"], summary["max"], bands,
@@ -106,18 +123,21 @@ if simple:
                                   format_func=lambda f: labels.name(f, True),
                                   key="whatif_feature", label_visibility="collapsed")
             curve = data.whatif_curve(factor, inputs)
+            chart_headline(plain.curve_headline(labels.name(factor, True), labels.unit(factor),
+                                                curve["x"], curve["y"]))
             st.altair_chart(charts.curve_chart(curve, st.session_state[f"in_{factor}"],
                                                labels.label(factor, True), 170,
                                                band=band["quantile"] if band else None))
             st.html(f'<p class="plain-text">{plain.curve_caption(labels.name(factor, True), labels.unit(factor), curve["x"], curve["y"])}'
                     f"{tip(TIPS['whatif'], left=True)}</p>")
         else:
-            card_title("What moved it (t/ha)", help_text=TIPS["contributions"])
+            friendly = {labels.name(f, True): float(v) for f, v in contributions.items()}
+            card_title("What moved it (t/ha)", help_text=plain.tip_text("contributions", True))
+            chart_headline(plain.contribution_headline(friendly))
             rows = [{"feature": labels.name(f, True), "value": float(v)} for f, v in top.items()]
             rows.append({"feature": f"Other factors ({len(rest)})", "value": float(rest.sum())})
             chart_data = pd.DataFrame(rows).assign(order=range(len(rows)))
             st.altair_chart(charts.contribution_chart(chart_data, height=240))
-            friendly = {labels.name(f, True): float(v) for f, v in contributions.items()}
             st.html(f'<p class="plain-text">{plain.explanation_sentence(friendly)}</p>')
 else:
     boost, drag = series.idxmax(), series.idxmin()
